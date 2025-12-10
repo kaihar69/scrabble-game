@@ -2,131 +2,190 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Scrabble Chef Edition</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@500;900&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #202020;
-            --board-green: #27ae60;
-            --board-gap: #1e8449;
-            --tile-wood: #f5deb3;
-            --tile-shadow: #c5a065;
+            --bg-color: #1a1a1a;
+            --board-border: #4e342e; /* Dunkler Holzrahmen */
+            --grid-gap: #111; /* Die Linien zwischen den Feldern */
+            --field-green: #2e7d32; /* Sattes Filz-Grün */
+            --tile-color: #f3e5ab; /* Elfenbein/Holz */
+            --tile-text: #2c3e50;
         }
+
+        * { box-sizing: border-box; }
 
         body { 
             font-family: 'Roboto', sans-serif; 
-            display: flex; flex-direction: column; align-items: center; 
             background: var(--bg-color); 
             color: #ecf0f1; 
-            margin: 0; padding: 20px; 
-        }
-        
-        h1 { margin-bottom: 5px; font-weight: 300; letter-spacing: 2px; text-transform: uppercase; }
-
-        /* Das Brett - Modern & Grün */
-        #game-container {
-            padding: 15px;
-            background: #2e4053;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            margin-top: 20px;
+            margin: 0; 
+            padding: 10px;
+            /* Perfekte Zentrierung */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
 
+        /* Container für das Spielbrett (Rahmen) */
+        #board-wrapper {
+            background: var(--board-border);
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+            /* Maximale Breite, aber passt sich an */
+            width: 100%;
+            max-width: 600px; 
+            /* Erhält das Quadrat-Format */
+            aspect-ratio: 1 / 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Das eigentliche Gitter */
         #game-board { 
             display: grid; 
+            /* Exakt 15 Spalten */
             grid-template-columns: repeat(15, 1fr); 
-            gap: 3px; 
-            background: var(--board-gap); /* Die Linienfarbe */
-            border: 5px solid var(--board-gap);
-            border-radius: 4px;
+            grid-template-rows: repeat(15, 1fr);
+            gap: 2px; /* Die gleichmäßigen Linien */
+            background: var(--grid-gap); 
             width: 100%;
-            max-width: 650px;
-            aspect-ratio: 1 / 1;
+            height: 100%;
+            border: 2px solid var(--grid-gap);
         }
 
         .cell { 
-            background: var(--board-green); 
-            display: flex; align-items: center; justify-content: center; 
-            font-weight: 700; font-size: clamp(8px, 2vw, 14px); 
-            color: rgba(255,255,255,0.3); /* Dezentere Schrift auf leeren Feldern */
-            cursor: pointer; user-select: none;
+            background: var(--field-green); 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
             position: relative;
-            border-radius: 2px;
-            transition: background 0.2s;
+            cursor: pointer; 
+            user-select: none;
+            overflow: hidden; /* Damit nichts übersteht */
         }
         
-        .cell:hover { filter: brightness(1.1); }
+        /* Labels auf dem Brett (3W, 2B etc.) */
+        .cell-label {
+            font-size: clamp(6px, 1.5vw, 10px);
+            font-weight: bold;
+            opacity: 0.7;
+            text-align: center;
+        }
 
-        /* Spezialfelder - Modern Pastell */
-        .tw { background-color: #c0392b; color: #fff; } /* Triple Word (Dunkelrot) */
-        .dw { background-color: #e67e22; color: #fff; } /* Double Word (Orange) */
-        .tl { background-color: #2980b9; color: #fff; } /* Triple Letter (Blau) */
-        .dl { background-color: #8e44ad; color: #fff; } /* Double Letter (Lila) */
-        .center { background-color: #e67e22; color: #fff; font-size: 20px;}
+        /* Spezialfelder Farben */
+        .tw { background-color: #b71c1c; .cell-label { color: #fff; } } /* 3W Rot */
+        .dw { background-color: #f57f17; .cell-label { color: #fff; } } /* 2W Orange */
+        .tl { background-color: #0d47a1; .cell-label { color: #fff; } } /* 3B Dunkelblau */
+        .dl { background-color: #0288d1; .cell-label { color: #fff; } } /* 2B Hellblau */
+        .center { background-color: #f57f17; display: flex; align-items: center; justify-content: center; }
+        .star { font-size: 20px; color: #fff; }
 
-        /* Der Spielstein (auf dem Brett und in der Hand) */
+        /* --- Der Spielstein --- */
         .tile-look {
-            background-color: var(--tile-wood);
-            color: #3e2723;
-            box-shadow: 0 3px 0 var(--tile-shadow);
-            border-radius: 4px;
-            display: flex; align-items: center; justify-content: center;
-            width: 90%; height: 90%;
-            font-size: clamp(12px, 2.5vw, 22px);
+            background: linear-gradient(135deg, #fff8e1 0%, #f3e5ab 100%);
+            color: var(--tile-text);
+            width: 95%; height: 95%;
+            border-radius: 3px;
+            box-shadow: 1px 1px 2px rgba(0,0,0,0.4);
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            position: relative;
             z-index: 10;
         }
         
+        .tile-letter {
+            font-size: clamp(10px, 3.5vw, 22px);
+            font-weight: 900;
+            transform: translateY(-5%); /* Leicht nach oben für Platz für Zahl */
+        }
+
+        .tile-score {
+            position: absolute;
+            bottom: 2px;
+            right: 3px;
+            font-size: clamp(5px, 1.2vw, 9px);
+            font-weight: 500;
+            color: #555;
+        }
+        
         .preview .tile-look {
-            background-color: #fff; /* Vorschau ist weiß */
-            color: var(--board-green);
-            box-shadow: 0 3px 0 #ccc;
-            opacity: 0.9;
+            opacity: 0.7; /* Vorschau leicht transparent */
+            box-shadow: none;
         }
 
-        /* Controls */
-        #controls { margin-top: 25px; display: flex; gap: 15px; }
-        button { 
-            padding: 12px 30px; font-size: 16px; cursor: pointer; border: none; border-radius: 50px; 
-            font-weight: bold; transition: transform 0.1s, filter 0.2s;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        /* --- UI Controls unten --- */
+        #ui-container {
+            width: 100%;
+            max-width: 600px;
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
         }
-        button:active { transform: translateY(2px); }
-        .btn-submit { background-color: #27ae60; color: white; } /* Grün */
-        .btn-reset { background-color: #7f8c8d; color: white; } /* Grau */
 
-        /* Die Hand (Rack) */
         #rack { 
-            margin-top: 25px; display: flex; gap: 10px; 
-            background: #2e4053; padding: 15px 25px; border-radius: 10px; 
-            box-shadow: inset 0 2px 10px rgba(0,0,0,0.3);
-            flex-wrap: wrap; justify-content: center;
+            background: #263238; 
+            padding: 10px; 
+            border-radius: 8px; 
+            display: flex; 
+            justify-content: center; 
+            gap: 5px;
             min-height: 50px;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
         }
         
-        .hand-tile { 
-            width: 45px; height: 45px; 
-            cursor: pointer; 
-            transition: transform 0.2s;
+        .hand-slot {
+            width: clamp(30px, 13vw, 45px);
+            height: clamp(30px, 13vw, 45px);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            transition: transform 0.1s;
         }
-        .hand-tile.selected { transform: translateY(-8px); filter: brightness(1.1); }
         
-        #status { margin-top: 10px; font-size: 1.1em; height: 1.5em; text-align: center; color: #f1c40f; font-weight: bold; }
+        .hand-slot.selected { transform: translateY(-10px); }
+
+        #controls { display: flex; justify-content: space-between; gap: 10px; }
+        
+        button { 
+            flex: 1;
+            padding: 15px; 
+            font-size: 16px; 
+            border: none; border-radius: 4px; 
+            font-weight: bold; text-transform: uppercase; letter-spacing: 1px;
+            cursor: pointer;
+        }
+        .btn-submit { background-color: #388e3c; color: white; box-shadow: 0 4px 0 #1b5e20; }
+        .btn-submit:active { transform: translateY(4px); box-shadow: none; }
+        
+        .btn-reset { background-color: #d32f2f; color: white; box-shadow: 0 4px 0 #8c1b1b; }
+        .btn-reset:active { transform: translateY(4px); box-shadow: none; }
+
+        #status { text-align: center; color: #ffb300; font-weight: bold; height: 20px; margin-bottom: 5px;}
+
     </style>
 </head>
 <body>
-    <h1>Scrabble <span style="color:#27ae60; font-size:0.8em">Chef Edition</span></h1>
-    <div id="status">Verbinde...</div>
     
-    <div id="game-container">
+    <div id="status">Verbinde...</div>
+
+    <div id="board-wrapper">
         <div id="game-board"></div>
     </div>
 
-    <div id="rack"></div>
-
-    <div id="controls">
-        <button class="btn-reset" onclick="resetTurn()">Löschen</button>
-        <button class="btn-submit" onclick="submitTurn()">LEGEN</button>
+    <div id="ui-container">
+        <div id="rack"></div>
+        <div id="controls">
+            <button class="btn-reset" onclick="resetTurn()">Löschen</button>
+            <button class="btn-submit" onclick="submitTurn()">Legen</button>
+        </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -141,35 +200,69 @@
         let currentBoard = Array(225).fill(null);
         let currentTurnMoves = []; 
 
+        // Punktewerte für die Anzeige (Deutsch)
+        const LETTER_SCORES = {
+            "A": 1, "B": 3, "C": 4, "D": 1, "E": 1, "F": 4, "G": 2, "H": 2, 
+            "I": 1, "J": 6, "K": 4, "L": 2, "M": 3, "N": 1, "O": 2, "P": 4, 
+            "Q": 10, "R": 1, "S": 1, "T": 1, "U": 1, "V": 6, "W": 3, "X": 8, 
+            "Y": 10, "Z": 3, "?": 0
+        };
+
         function getCellType(x, y) {
             const k = x + "," + y;
             if (k === "7,7") return "center";
+            // Triple Word (3W) - Ecken und Mitten der Ränder
             if ((x===0||x===7||x===14) && (y===0||y===7||y===14) && k!=="7,7") return "tw"; 
-            if (x===y || x+y===14) return "dw";
-            // Einfaches Muster für Triple Letter / Double Letter damit es gefüllt aussieht
-            if ((x===1||x===5||x===9||x===13)&&(y===1||y===5||y===9||y===13)) return "tl"; 
-            if ((x===3||x===11)&&(y===0||y===7||y===14)) return "dl";
-            if ((y===3||y===11)&&(x===0||x===7||x===14)) return "dl";
+            // Double Word (2W) - Diagonalen
+            if (x===y || x+y===14) {
+                 if(x>=1 && x<=4) return "dw"; 
+                 if(x>=10 && x<=13) return "dw"; 
+            }
+            // Triple Letter (3B)
+            if ((x===5||x===9) && (y===1||y===5||y===9||y===13)) return "tl";
+            if ((y===5||y===9) && (x===1||x===5||x===9||x===13)) return "tl";
+            // Double Letter (2B)
+            if ((x===3||x===11) && (y===0||y===7||y===14)) return "dl";
+            if ((y===3||y===11) && (x===0||x===7||x===14)) return "dl";
+            if ((x===2||x===6||x===8||x===12) && (y===6||y===8)) return "dl";
+            if ((y===2||y===6||y===8||y===12) && (x===6||x===8)) return "dl";
+            
             return "";
         }
 
-        // Brett aufbauen
+        // --- HTML Generator für einen Spielstein ---
+        function createTileHTML(letter) {
+            const score = LETTER_SCORES[letter] !== undefined ? LETTER_SCORES[letter] : 0;
+            return `
+                <div class="tile-look">
+                    <span class="tile-letter">${letter}</span>
+                    <span class="tile-score">${score}</span>
+                </div>
+            `;
+        }
+
+        // Brett initialisieren
         for (let i = 0; i < 225; i++) {
             const cell = document.createElement('div');
             cell.classList.add('cell');
             const x = i % 15; const y = Math.floor(i / 15);
             const type = getCellType(x, y);
+            
             if(type) cell.classList.add(type);
             
-            // Labels (nur wenn kein Stein drauf liegt)
-            const labelSpan = document.createElement('span');
-            if(type === 'tw') labelSpan.innerText = "3W";
-            else if(type === 'dw') labelSpan.innerText = "2W";
-            else if(type === 'tl') labelSpan.innerText = "3B";
-            else if(type === 'dl') labelSpan.innerText = "2B";
-            else if(type === 'center') labelSpan.innerText = "★";
-            cell.appendChild(labelSpan);
+            // Labels rendern (wenn kein Stein drauf ist)
+            let labelText = "";
+            if(type === 'tw') labelText = "3W";
+            else if(type === 'dw') labelText = "2W";
+            else if(type === 'tl') labelText = "3B";
+            else if(type === 'dl') labelText = "2B";
             
+            if (type === 'center') {
+                cell.innerHTML = '<span class="star">★</span>';
+            } else if (labelText) {
+                cell.innerHTML = `<span class="cell-label">${labelText}</span>`;
+            }
+
             cell.dataset.index = i;
             
             cell.addEventListener('click', () => {
@@ -177,15 +270,9 @@
                 const isOccupiedLocal = currentTurnMoves.find(m => m.index === i);
 
                 if (!isOccupiedServer && !isOccupiedLocal && selectedTile) {
-                    // Inhalt leeren (Label entfernen)
-                    cell.innerHTML = '';
-                    
-                    // Schönen Stein rendern
-                    const tileDiv = document.createElement('div');
-                    tileDiv.classList.add('tile-look');
-                    tileDiv.innerText = selectedTile.letter;
-                    cell.appendChild(tileDiv);
-                    cell.classList.add('preview'); // Markierung für "noch nicht fest"
+                    // Inhalt überschreiben
+                    cell.innerHTML = createTileHTML(selectedTile.letter);
+                    cell.classList.add('preview');
                     
                     currentTurnMoves.push({ index: i, letter: selectedTile.letter });
                     myHand.splice(selectedTile.handIndex, 1);
@@ -199,16 +286,16 @@
         function renderHand() {
             rackElement.innerHTML = '';
             myHand.forEach((letter, idx) => {
-                const tileWrapper = document.createElement('div');
-                tileWrapper.classList.add('hand-tile', 'tile-look');
-                tileWrapper.innerText = letter;
+                const slot = document.createElement('div');
+                slot.classList.add('hand-slot');
+                slot.innerHTML = createTileHTML(letter);
                 
-                tileWrapper.addEventListener('click', () => {
-                    document.querySelectorAll('.hand-tile').forEach(t => t.classList.remove('selected'));
-                    tileWrapper.classList.add('selected');
+                slot.addEventListener('click', () => {
+                    document.querySelectorAll('.hand-slot').forEach(t => t.classList.remove('selected'));
+                    slot.classList.add('selected');
                     selectedTile = { letter: letter, handIndex: idx };
                 });
-                rackElement.appendChild(tileWrapper);
+                rackElement.appendChild(slot);
             });
         }
 
@@ -230,45 +317,38 @@
                 const x = i % 15; const y = Math.floor(i / 15);
                 const type = getCellType(x, y);
                 
-                // Inhalt zurücksetzen
-                cell.innerHTML = '';
-                cell.className = 'cell'; // Klassen resetten
+                // Grundzustand wiederherstellen
+                cell.className = 'cell'; 
                 if(type) cell.classList.add(type);
 
                 if (currentBoard[i]) {
-                    // Fester Stein vom Server
-                    const tileDiv = document.createElement('div');
-                    tileDiv.classList.add('tile-look');
-                    tileDiv.innerText = currentBoard[i];
-                    cell.appendChild(tileDiv);
+                    // Fester Stein
+                    cell.innerHTML = createTileHTML(currentBoard[i]);
                 } else {
                     // Label wiederherstellen
-                    const labelSpan = document.createElement('span');
-                    if(type === 'tw') labelSpan.innerText = "3W";
-                    else if(type === 'dw') labelSpan.innerText = "2W";
-                    else if(type === 'tl') labelSpan.innerText = "3B";
-                    else if(type === 'dl') labelSpan.innerText = "2B";
-                    else if(type === 'center') labelSpan.innerText = "★";
-                    cell.appendChild(labelSpan);
+                    let labelText = "";
+                    if(type === 'tw') labelText = "3W";
+                    else if(type === 'dw') labelText = "2W";
+                    else if(type === 'tl') labelText = "3B";
+                    else if(type === 'dl') labelText = "2B";
+                    
+                    if (type === 'center') cell.innerHTML = '<span class="star">★</span>';
+                    else if (labelText) cell.innerHTML = `<span class="cell-label">${labelText}</span>`;
+                    else cell.innerHTML = '';
                 }
             });
         }
 
-        // --- Socket Logik ---
-        socket.on('player-assignment', (data) => statusElement.innerText = `Du bist Spieler ${data.playerIndex + 1}`);
+        // --- Socket ---
+        socket.on('player-assignment', (data) => statusElement.innerText = `Spieler ${data.playerIndex + 1}`);
         socket.on('update-hand', (newHand) => { myHand = newHand; renderHand(); });
-        
         socket.on('move-error', (msg) => {
-            const oldText = statusElement.innerText;
-            statusElement.innerText = "⚠️ " + msg;
-            statusElement.style.color = "#e74c3c";
-            setTimeout(() => {
-                statusElement.innerText = oldText;
-                statusElement.style.color = "#f1c40f";
-            }, 3000);
+            const oldT = statusElement.innerText;
+            statusElement.innerText = msg;
+            statusElement.style.color = "#ff5252";
+            setTimeout(() => { statusElement.innerText = oldT; statusElement.style.color = "#ffb300"; }, 3000);
             resetTurn(); 
         });
-
         socket.on('update-board', (boardData) => {
             currentBoard = boardData;
             currentTurnMoves = [];
