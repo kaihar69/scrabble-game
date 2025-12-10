@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scrabble Chef Edition</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; display: flex; flex-direction: column; align-items: center; background: #2c3e50; color: white; margin: 0; padding: 20px; }
+        
+        /* Das Brett */
+        #game-board { 
+            display: grid; 
+            grid-template-columns: repeat(15, 1fr); 
+            gap: 2px; 
+            margin-top: 20px; 
+            background: #000; 
+            padding: 5px; 
+            border-radius: 4px;
+            width: 100%;
+            max-width: 600px;
+            aspect-ratio: 1 / 1;
+        }
+        .cell { 
+            background: #fff; 
+            display: flex; align-items: center; justify-content: center; 
+            font-weight: bold; font-size: clamp(10px, 2.5vw, 20px); 
+            color: #333; cursor: pointer; user-select: none;
+        }
+        
+        /* Farben */
+        .tw { background-color: #ff5e5e; color: white; } 
+        .dw { background-color: #ffb5b5; } 
+        .tl { background-color: #5e9eff; color: white; } 
+        .dl { background-color: #add8e6; } 
+        .center { background-color: #ffb5b5; }
+        .preview { background-color: #d6eaf8 !important; color: #2980b9; }
+
+        /* Hand und Controls */
+        #controls { margin-top: 20px; display: flex; gap: 10px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; }
+        .btn-submit { background-color: #27ae60; color: white; }
+        .btn-reset { background-color: #c0392b; color: white; }
+
+        #rack { 
+            margin-top: 20px; display: flex; gap: 8px; 
+            background: #34495e; padding: 10px; border-radius: 8px; 
+            flex-wrap: wrap; justify-content: center;
+        }
+        .tile { 
+            width: 40px; height: 40px; background: #f1c40f; color: #333; 
+            display: flex; align-items: center; justify-content: center; 
+            font-weight: bold; font-size: 20px; border-radius: 4px; 
+            cursor: pointer; box-shadow: 0 4px 0 #b7950b; 
+        }
+        .tile.selected { background: #fff; transform: translateY(-5px); box-shadow: 0 9px 0 #ccc; }
+        
+        #status { margin-top: 10px; font-size: 1.2em; height: 1.5em; text-align: center; color: #f39c12; }
+    </style>
+</head>
+<body>
+    <h1>Scrabble - Chef Edition</h1>
+    <div id="status">Verbinde...</div>
+    
+    <div id="game-board"></div>
+
+    <div id="controls">
+        <button class="btn-reset" onclick="resetTurn()">Zurück</button>
+        <button class="btn-submit" onclick="submitTurn()">Legen</button>
+    </div>
+
+    <div id="rack"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const boardElement = document.getElementById('game-board');
+        const rackElement = document.getElementById('rack');
+        const statusElement = document.getElementById('status');
+        
+        let selectedTile = null; 
+        let myHand = []; 
+        let currentBoard = Array(225).fill(null);
+        let currentTurnMoves = []; 
+
+        // Hilfsfunktion: Spezialfelder
+        function getCellType(x, y) {
+            const k = x + "," + y;
+            if (k === "7,7") return "center";
+            if ((x===0||x===7||x===14) && (y===0||y===7||y===14) && k!=="7,7") return "tw"; 
+            if (x===y || x+y===14) return "dw";
+            if ((x===5||x===9)&&(y===1||y===5||y===9||y===13)) return "tl"; // Beispiel TL
+            return "";
+        }
+
+        // Brett aufbauen
+        for (let i = 0; i < 225; i++) {
+            const cell = document.createElement('div');
+            cell.classList.add('cell');
+            const x = i % 15; const y = Math.floor(i / 15);
+            const type = getCellType(x, y);
+            if(type) cell.classList.add(type);
+            
+            // Labels
+            if(type === 'tw') cell.innerText = "3W";
+            else if(type === 'dw') cell.innerText = "2W";
+            else if(type === 'center') cell.innerText = "★";
+            
+            cell.dataset.index = i;
+            
+            cell.addEventListener('click', () => {
+                const isOccupiedServer = currentBoard[i] !== null;
+                const isOccupiedLocal = currentTurnMoves.find(m => m.index === i);
+
+                if (!isOccupiedServer && !isOccupiedLocal && selectedTile) {
+                    cell.innerText = selectedTile.letter;
+                    cell.classList.add('preview');
+                    currentTurnMoves.push({ index: i, letter: selectedTile.letter });
+                    myHand.splice(selectedTile.handIndex, 1);
+                    selectedTile = null;
+                    renderHand();
+                }
+            });
+            boardElement.appendChild(cell);
+        }
+
+        function renderHand() {
+            rackElement.innerHTML = '';
+            myHand.forEach((letter, idx) => {
+                const tile = document.createElement('div');
+                tile.classList.add('tile');
+                tile.innerText = letter;
+                tile.addEventListener('click', () => {
+                    document.querySelectorAll('.tile').forEach(t => t.classList.remove('selected'));
+                    tile.classList.add('selected');
+                    selectedTile = { letter: letter, handIndex: idx };
+                });
+                rackElement.appendChild(tile);
+            });
+        }
+
+        function resetTurn() {
+            currentTurnMoves.forEach(move => myHand.push(move.letter));
+            currentTurnMoves = [];
+            renderHand();
+            updateBoardView(); 
+        }
+
+        function submitTurn() {
+            if (currentTurnMoves.length === 0) return;
+            socket.emit('submit-turn', currentTurnMoves);
+        }
+
+        function updateBoardView() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach((cell, i) => {
+                cell.className = 'cell';
+                const x = i % 15; const y = Math.floor(i / 15);
+                const type = getCellType(x, y);
+                if(type) cell.classList.add(type);
+
+                if (currentBoard[i]) {
+                    cell.innerText = currentBoard[i];
+                    cell.style.backgroundColor = "#f1c40f"; // Gelb für feste Steine
+                    cell.classList.remove('tw', 'dw', 'tl', 'dl', 'center');
+                } else {
+                    // Reset Labels
+                    if(type === 'tw') cell.innerText = "3W";
+                    else if(type === 'dw') cell.innerText = "2W";
+                    else if(type === 'center') cell.innerText = "★";
+                    else cell.innerText = "";
+                }
+            });
+        }
+
+        // --- Socket Logik ---
+        socket.on('player-assignment', (data) => statusElement.innerText = `Spieler ${data.playerIndex + 1}`);
+        socket.on('update-hand', (newHand) => { myHand = newHand; renderHand(); });
+        
+        socket.on('move-error', (msg) => {
+            statusElement.innerText = "❌ " + msg;
+            setTimeout(() => statusElement.innerText = "Spieler " + (socket.id ? "..." : ""), 3000);
+            resetTurn(); 
+        });
+
+        socket.on('update-board', (boardData) => {
+            currentBoard = boardData;
+            currentTurnMoves = [];
+            updateBoardView();
+        });
+    </script>
+</body>
+</html>
