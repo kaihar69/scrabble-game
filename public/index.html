@@ -13,6 +13,10 @@
             --field-green: #2e7d32; 
             --tile-color: #f3e5ab; 
             --tile-text: #2c3e50;
+            
+            /* Feste Größen für UI Elemente damit wir rechnen können */
+            --header-h: 50px;
+            --footer-h: 120px; /* Rack + Buttons + Padding */
         }
 
         * { box-sizing: border-box; }
@@ -21,46 +25,41 @@
             font-family: 'Roboto', sans-serif; 
             background: var(--bg-color); 
             color: #ecf0f1; 
-            margin: 0; 
-            padding: 5px; /* Minimaler Rand */
-            
-            /* Der Trick für "Kein Scrollen": */
-            height: 100dvh; /* Dynamic Viewport Height */
+            margin: 0; padding: 0;
+            height: 100dvh; /* Exakte Bildschirmhöhe */
             width: 100vw;
-            overflow: hidden; /* Scrollbalken verbieten */
-            
+            overflow: hidden; /* Scrollbalken weg */
             display: flex; 
             flex-direction: column; 
-            justify-content: space-between; 
             align-items: center;
+            justify-content: center; /* Alles vertikal zentrieren */
         }
 
-        /* --- Scoreboard (Oben, feste Größe aber flexibel) --- */
+        /* --- OBEN: Scoreboard --- */
         #scoreboard {
-            flex: 0 0 auto; /* Darf nicht schrumpfen/wachsen */
-            display: flex; justify-content: space-between; align-items: center;
+            height: var(--header-h);
             width: 100%; max-width: 600px;
+            display: flex; justify-content: space-between; align-items: center;
             background: #263238; 
-            padding: 8px 15px;
-            border-radius: 8px; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            padding: 0 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
             font-size: 0.9rem;
-            z-index: 20;
+            flex-shrink: 0; /* Darf nicht gequetscht werden */
         }
         .player-score { display: flex; flex-direction: column; align-items: center; opacity: 0.7; }
         .player-score.active { opacity: 1; color: #fff; }
         .score-val { font-size: 1.2em; color: #f1c40f; font-weight: bold; }
-        #status { font-size: 0.9em; color: #ffb300; font-weight: bold; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
+        #status { font-size: 0.9em; color: #ffb300; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
 
-        /* --- Brett-Container (Mitte, flexibel) --- */
+        /* --- MITTE: Das Brett --- */
         #board-wrapper {
-            flex: 1 1 auto; /* Nimmt den restlichen Platz */
+            flex-grow: 1; /* Nimmt den ganzen Platz in der Mitte */
+            width: 100%;
             display: flex; 
             justify-content: center; 
             align-items: center;
-            width: 100%;
-            overflow: hidden; /* Wichtig */
-            padding: 5px 0; /* Etwas Luft oben/unten */
+            overflow: hidden;
+            padding: 5px;
         }
 
         #game-board { 
@@ -69,20 +68,16 @@
             grid-template-rows: repeat(15, 1fr);
             gap: 2px; 
             background: var(--grid-gap); 
-            border: 2px solid var(--board-border);
+            border: 4px solid var(--board-border);
             
-            /* Das Herzstück der Größenberechnung: */
-            /* Es versucht so groß wie möglich zu sein, aber... */
-            width: 100%;
-            height: 100%;
-            /* ...es darf nie das Seitenverhältnis brechen */
-            aspect-ratio: 1 / 1;
-            /* ...und es darf nie über den Container hinausgehen */
-            max-height: 100%; 
-            max-width: 100%;
+            /* DIE FIX-FORMEL: */
+            /* Nimm 96% der Breite ODER (Höhe minus UI-Platz). Das Kleinere gewinnt. */
+            /* 180px ist Platz für Header + Footer + Puffer */
+            width: min(96vw, calc(100dvh - 180px));
+            height: min(96vw, calc(100dvh - 180px));
             
-            /* Fallback für Landscape auf Handy: */
-            object-fit: contain;
+            /* Sicherstellen, dass es quadratisch bleibt */
+            aspect-ratio: 1 / 1; 
         }
 
         .cell { 
@@ -92,12 +87,10 @@
         }
         
         .cell-label {
-            font-size: clamp(6px, 1.5vh, 10px); /* Responsive Schrift */
-            font-weight: bold; opacity: 0.7; text-align: center;
-            pointer-events: none;
+            font-size: clamp(6px, 1.5vh, 10px);
+            font-weight: bold; opacity: 0.7; text-align: center; pointer-events: none;
         }
 
-        /* Farben Spezialfelder */
         .tw { background-color: #b71c1c; .cell-label { color: #fff; } } 
         .dw { background-color: #f57f17; .cell-label { color: #fff; } } 
         .tl { background-color: #0d47a1; .cell-label { color: #fff; } } 
@@ -105,51 +98,39 @@
         .center { background-color: #f57f17; display: flex; align-items: center; justify-content: center; }
         .star { font-size: 1.5em; color: #fff; line-height: 0; padding-bottom: 5px; }
 
-        /* --- Spielstein --- */
+        /* Stein-Design */
         .tile-look {
             background: linear-gradient(135deg, #fff8e1 0%, #f3e5ab 100%);
             color: var(--tile-text);
             width: 92%; height: 92%;
-            border-radius: 15%; /* Etwas runder */
-            box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            border-radius: 12%;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.5);
             display: flex; justify-content: center; align-items: center;
             position: relative; z-index: 10;
         }
-        
-        .tile-letter {
-            /* Schriftgröße passt sich der Kachel an */
-            font-size: 65%; 
-            font-weight: 900;
-        }
-
-        .tile-score {
-            position: absolute; bottom: 8%; right: 10%;
-            font-size: 30%;
-            font-weight: 600; color: #444;
-        }
-        
+        .tile-letter { font-size: 65%; font-weight: 900; }
+        .tile-score { position: absolute; bottom: 8%; right: 10%; font-size: 30%; font-weight: 600; color: #444; }
         .preview .tile-look { opacity: 0.6; box-shadow: none; border: 1px dashed #333; }
 
-        /* --- UI Container (Unten, fest) --- */
+        /* --- UNTEN: Controls --- */
         #ui-container {
-            flex: 0 0 auto; /* Feste Höhe */
+            height: var(--footer-h);
             width: 100%; max-width: 600px; 
             display: flex; flex-direction: column; gap: 8px;
-            padding-bottom: 5px; /* Abstand zum Rand unten */
+            padding: 0 10px 10px 10px;
+            justify-content: flex-end;
+            flex-shrink: 0;
         }
 
         #rack { 
             background: #263238; padding: 5px; border-radius: 8px; 
             display: flex; justify-content: center; gap: 4px;
-            height: 12vh; /* Dynamische Höhe relativ zum Screen */
-            max-height: 60px; /* Aber nicht riesig werden am PC */
-            min-height: 45px;
+            height: 55px; /* Feste Höhe, damit Berechnung oben stimmt */
             box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
         }
         
         .hand-slot {
-            aspect-ratio: 1/1; /* Quadratisch bleiben */
-            height: 100%;
+            height: 100%; aspect-ratio: 1/1;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; transition: transform 0.1s;
         }
@@ -158,25 +139,14 @@
         #controls { display: flex; justify-content: space-between; gap: 10px; height: 45px; }
         
         button { 
-            flex: 1; 
-            font-size: 1rem; 
-            border: none; border-radius: 4px; 
-            font-weight: bold; text-transform: uppercase; letter-spacing: 1px;
-            cursor: pointer;
-            /* Touch-freundlich */
+            flex: 1; font-size: 1rem; border: none; border-radius: 4px; 
+            font-weight: bold; text-transform: uppercase; letter-spacing: 1px; cursor: pointer;
             touch-action: manipulation;
         }
         .btn-submit { background-color: #388e3c; color: white; box-shadow: 0 3px 0 #1b5e20; }
         .btn-submit:active { transform: translateY(2px); box-shadow: none; }
         .btn-reset { background-color: #d32f2f; color: white; box-shadow: 0 3px 0 #8c1b1b; }
         .btn-reset:active { transform: translateY(2px); box-shadow: none; }
-
-        /* Media Query für sehr kleine Bildschirme (iPhone SE etc.) */
-        @media (max-height: 600px) {
-            #controls { height: 35px; }
-            #scoreboard { padding: 4px 10px; font-size: 0.8em; }
-            button { font-size: 0.8rem; }
-        }
     </style>
 </head>
 <body>
@@ -240,17 +210,14 @@
 
         function createTileHTML(letter) {
             const score = LETTER_SCORES[letter] !== undefined ? LETTER_SCORES[letter] : 0;
-            // Verwendung von Container-Queries-ähnlicher Schriftgröße (Prozent)
             return `<div class="tile-look"><span class="tile-letter">${letter}</span><span class="tile-score">${score}</span></div>`;
         }
 
-        // Brett initialisieren
         for (let i = 0; i < 225; i++) {
             const cell = document.createElement('div');
             cell.classList.add('cell');
             const x = i % 15; const y = Math.floor(i / 15);
             const type = getCellType(x, y);
-            
             if(type) cell.classList.add(type);
             
             let labelText = "";
@@ -261,11 +228,9 @@
             else if (labelText) cell.innerHTML = `<span class="cell-label">${labelText}</span>`;
 
             cell.dataset.index = i;
-            
             cell.addEventListener('click', () => {
                 const isOccupiedServer = currentBoard[i] !== null;
                 const isOccupiedLocal = currentTurnMoves.find(m => m.index === i);
-
                 if (!isOccupiedServer && !isOccupiedLocal && selectedTile) {
                     cell.innerHTML = createTileHTML(selectedTile.letter);
                     cell.classList.add('preview');
@@ -319,7 +284,6 @@
                     let labelText = "";
                     if(type === 'tw') labelText = "3W"; else if(type === 'dw') labelText = "2W";
                     else if(type === 'tl') labelText = "3B"; else if(type === 'dl') labelText = "2B";
-                    
                     if (type === 'center') cell.innerHTML = '<span class="star">★</span>';
                     else if (labelText) cell.innerHTML = `<span class="cell-label">${labelText}</span>`;
                     else cell.innerHTML = '';
@@ -327,7 +291,6 @@
             });
         }
 
-        // --- Socket Events ---
         socket.on('player-assignment', (data) => {
             const p1 = document.getElementById('p1-score');
             const p2 = document.getElementById('p2-score');
@@ -338,17 +301,15 @@
 
         socket.on('update-hand', (newHand) => { myHand = newHand; renderHand(); });
         socket.on('update-board', (boardData) => { currentBoard = boardData; currentTurnMoves = []; updateBoardView(); });
-        
         socket.on('update-scores', (playersData) => {
             const score0 = document.getElementById('score-0');
             const score1 = document.getElementById('score-1');
             if(playersData[0]) score0.innerText = playersData[0].score;
             if(playersData[1]) score1.innerText = playersData[1].score;
         });
-
         socket.on('move-error', (msg) => {
             const oldT = statusElement.innerText;
-            statusElement.innerText = "⚠️ " + msg;
+            statusElement.innerText = msg;
             statusElement.style.color = "#ff5252";
             setTimeout(() => { statusElement.innerText = oldT; statusElement.style.color = "#ffb300"; }, 2500);
             resetTurn(); 
