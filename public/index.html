@@ -21,34 +21,46 @@
             font-family: 'Roboto', sans-serif; 
             background: var(--bg-color); 
             color: #ecf0f1; 
-            margin: 0; padding: 10px;
-            min-height: 100vh;
-            display: flex; flex-direction: column; 
-            justify-content: center; align-items: center;
+            margin: 0; 
+            padding: 5px; /* Minimaler Rand */
+            
+            /* Der Trick für "Kein Scrollen": */
+            height: 100dvh; /* Dynamic Viewport Height */
+            width: 100vw;
+            overflow: hidden; /* Scrollbalken verbieten */
+            
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between; 
+            align-items: center;
         }
 
-        /* --- Scoreboard --- */
+        /* --- Scoreboard (Oben, feste Größe aber flexibel) --- */
         #scoreboard {
+            flex: 0 0 auto; /* Darf nicht schrumpfen/wachsen */
             display: flex; justify-content: space-between; align-items: center;
             width: 100%; max-width: 600px;
-            background: #263238; padding: 10px 20px;
-            border-radius: 8px; margin-bottom: 15px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            background: #263238; 
+            padding: 8px 15px;
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            font-size: 0.9rem;
+            z-index: 20;
         }
-        .player-score { display: flex; flex-direction: column; align-items: center; font-size: 0.9em; opacity: 0.7;}
+        .player-score { display: flex; flex-direction: column; align-items: center; opacity: 0.7; }
         .player-score.active { opacity: 1; color: #fff; }
-        .score-val { font-size: 1.4em; color: #f1c40f; font-weight: bold; }
-        #status { font-size: 0.9em; color: #ffb300; font-weight: bold; text-align: center; }
+        .score-val { font-size: 1.2em; color: #f1c40f; font-weight: bold; }
+        #status { font-size: 0.9em; color: #ffb300; font-weight: bold; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
 
-        /* --- Brett --- */
+        /* --- Brett-Container (Mitte, flexibel) --- */
         #board-wrapper {
-            background: var(--board-border);
-            padding: 8px;
-            border-radius: 4px;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
-            width: 100%; max-width: 600px; 
-            aspect-ratio: 1 / 1;
-            display: flex; justify-content: center; align-items: center;
+            flex: 1 1 auto; /* Nimmt den restlichen Platz */
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            width: 100%;
+            overflow: hidden; /* Wichtig */
+            padding: 5px 0; /* Etwas Luft oben/unten */
         }
 
         #game-board { 
@@ -57,98 +69,126 @@
             grid-template-rows: repeat(15, 1fr);
             gap: 2px; 
             background: var(--grid-gap); 
-            width: 100%; height: 100%;
-            border: 2px solid var(--grid-gap);
+            border: 2px solid var(--board-border);
+            
+            /* Das Herzstück der Größenberechnung: */
+            /* Es versucht so groß wie möglich zu sein, aber... */
+            width: 100%;
+            height: 100%;
+            /* ...es darf nie das Seitenverhältnis brechen */
+            aspect-ratio: 1 / 1;
+            /* ...und es darf nie über den Container hinausgehen */
+            max-height: 100%; 
+            max-width: 100%;
+            
+            /* Fallback für Landscape auf Handy: */
+            object-fit: contain;
         }
 
         .cell { 
             background: var(--field-green); 
             display: flex; align-items: center; justify-content: center; 
             position: relative; cursor: pointer; user-select: none;
-            overflow: hidden;
         }
         
         .cell-label {
-            font-size: clamp(6px, 1.5vw, 10px);
+            font-size: clamp(6px, 1.5vh, 10px); /* Responsive Schrift */
             font-weight: bold; opacity: 0.7; text-align: center;
+            pointer-events: none;
         }
 
-        /* Spezialfelder */
+        /* Farben Spezialfelder */
         .tw { background-color: #b71c1c; .cell-label { color: #fff; } } 
         .dw { background-color: #f57f17; .cell-label { color: #fff; } } 
         .tl { background-color: #0d47a1; .cell-label { color: #fff; } } 
         .dl { background-color: #0288d1; .cell-label { color: #fff; } } 
         .center { background-color: #f57f17; display: flex; align-items: center; justify-content: center; }
-        .star { font-size: 20px; color: #fff; }
+        .star { font-size: 1.5em; color: #fff; line-height: 0; padding-bottom: 5px; }
 
         /* --- Spielstein --- */
         .tile-look {
             background: linear-gradient(135deg, #fff8e1 0%, #f3e5ab 100%);
             color: var(--tile-text);
-            width: 94%; height: 94%;
-            border-radius: 3px;
-            box-shadow: 1px 1px 2px rgba(0,0,0,0.4);
+            width: 92%; height: 92%;
+            border-radius: 15%; /* Etwas runder */
+            box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
             display: flex; justify-content: center; align-items: center;
             position: relative; z-index: 10;
         }
         
         .tile-letter {
-            font-size: clamp(10px, 3.5vw, 22px);
+            /* Schriftgröße passt sich der Kachel an */
+            font-size: 65%; 
             font-weight: 900;
-            transform: translateY(-5%);
         }
 
         .tile-score {
-            position: absolute; bottom: 2px; right: 3px;
-            font-size: clamp(5px, 1.2vw, 9px);
-            font-weight: 500; color: #555;
+            position: absolute; bottom: 8%; right: 10%;
+            font-size: 30%;
+            font-weight: 600; color: #444;
         }
         
-        .preview .tile-look { opacity: 0.7; box-shadow: none; }
+        .preview .tile-look { opacity: 0.6; box-shadow: none; border: 1px dashed #333; }
 
-        /* --- UI Controls --- */
+        /* --- UI Container (Unten, fest) --- */
         #ui-container {
-            width: 100%; max-width: 600px; margin-top: 20px;
-            display: flex; flex-direction: column; gap: 10px;
+            flex: 0 0 auto; /* Feste Höhe */
+            width: 100%; max-width: 600px; 
+            display: flex; flex-direction: column; gap: 8px;
+            padding-bottom: 5px; /* Abstand zum Rand unten */
         }
 
         #rack { 
-            background: #263238; padding: 10px; border-radius: 8px; 
-            display: flex; justify-content: center; gap: 5px;
-            min-height: 50px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+            background: #263238; padding: 5px; border-radius: 8px; 
+            display: flex; justify-content: center; gap: 4px;
+            height: 12vh; /* Dynamische Höhe relativ zum Screen */
+            max-height: 60px; /* Aber nicht riesig werden am PC */
+            min-height: 45px;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
         }
         
         .hand-slot {
-            width: clamp(30px, 13vw, 45px); height: clamp(30px, 13vw, 45px);
+            aspect-ratio: 1/1; /* Quadratisch bleiben */
+            height: 100%;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; transition: transform 0.1s;
         }
-        .hand-slot.selected { transform: translateY(-10px); }
+        .hand-slot.selected { transform: translateY(-10%); border-bottom: 3px solid #f1c40f; }
 
-        #controls { display: flex; justify-content: space-between; gap: 10px; }
+        #controls { display: flex; justify-content: space-between; gap: 10px; height: 45px; }
         
         button { 
-            flex: 1; padding: 15px; font-size: 16px; 
+            flex: 1; 
+            font-size: 1rem; 
             border: none; border-radius: 4px; 
             font-weight: bold; text-transform: uppercase; letter-spacing: 1px;
             cursor: pointer;
+            /* Touch-freundlich */
+            touch-action: manipulation;
         }
-        .btn-submit { background-color: #388e3c; color: white; box-shadow: 0 4px 0 #1b5e20; }
-        .btn-submit:active { transform: translateY(4px); box-shadow: none; }
-        .btn-reset { background-color: #d32f2f; color: white; box-shadow: 0 4px 0 #8c1b1b; }
-        .btn-reset:active { transform: translateY(4px); box-shadow: none; }
+        .btn-submit { background-color: #388e3c; color: white; box-shadow: 0 3px 0 #1b5e20; }
+        .btn-submit:active { transform: translateY(2px); box-shadow: none; }
+        .btn-reset { background-color: #d32f2f; color: white; box-shadow: 0 3px 0 #8c1b1b; }
+        .btn-reset:active { transform: translateY(2px); box-shadow: none; }
+
+        /* Media Query für sehr kleine Bildschirme (iPhone SE etc.) */
+        @media (max-height: 600px) {
+            #controls { height: 35px; }
+            #scoreboard { padding: 4px 10px; font-size: 0.8em; }
+            button { font-size: 0.8rem; }
+        }
     </style>
 </head>
 <body>
     
     <div id="scoreboard">
         <div class="player-score" id="p1-score">
-            <span>Spieler 1</span>
+            <span>P1</span>
             <span class="score-val" id="score-0">0</span>
         </div>
-        <div id="status">Verbinde...</div>
+        <div id="status">Lade...</div>
         <div class="player-score" id="p2-score">
-            <span>Spieler 2</span>
+            <span>P2</span>
             <span class="score-val" id="score-1">0</span>
         </div>
     </div>
@@ -160,8 +200,8 @@
     <div id="ui-container">
         <div id="rack"></div>
         <div id="controls">
-            <button class="btn-reset" onclick="resetTurn()">Löschen</button>
-            <button class="btn-submit" onclick="submitTurn()">Legen</button>
+            <button class="btn-reset" onclick="resetTurn()">X</button>
+            <button class="btn-submit" onclick="submitTurn()">LEGEN</button>
         </div>
     </div>
 
@@ -200,6 +240,7 @@
 
         function createTileHTML(letter) {
             const score = LETTER_SCORES[letter] !== undefined ? LETTER_SCORES[letter] : 0;
+            // Verwendung von Container-Queries-ähnlicher Schriftgröße (Prozent)
             return `<div class="tile-look"><span class="tile-letter">${letter}</span><span class="tile-score">${score}</span></div>`;
         }
 
@@ -292,7 +333,7 @@
             const p2 = document.getElementById('p2-score');
             if(data.playerIndex === 0) { p1.classList.add('active'); p1.style.borderBottom = "2px solid #f1c40f"; }
             if(data.playerIndex === 1) { p2.classList.add('active'); p2.style.borderBottom = "2px solid #f1c40f"; }
-            statusElement.innerText = `Du bist Spieler ${data.playerIndex + 1}`;
+            statusElement.innerText = `Du bist P${data.playerIndex + 1}`;
         });
 
         socket.on('update-hand', (newHand) => { myHand = newHand; renderHand(); });
@@ -301,16 +342,15 @@
         socket.on('update-scores', (playersData) => {
             const score0 = document.getElementById('score-0');
             const score1 = document.getElementById('score-1');
-            // Einfache Zuordnung basierend auf Reihenfolge (0 = Spieler 1, 1 = Spieler 2)
             if(playersData[0]) score0.innerText = playersData[0].score;
             if(playersData[1]) score1.innerText = playersData[1].score;
         });
 
         socket.on('move-error', (msg) => {
             const oldT = statusElement.innerText;
-            statusElement.innerText = msg;
+            statusElement.innerText = "⚠️ " + msg;
             statusElement.style.color = "#ff5252";
-            setTimeout(() => { statusElement.innerText = oldT; statusElement.style.color = "#ffb300"; }, 3000);
+            setTimeout(() => { statusElement.innerText = oldT; statusElement.style.color = "#ffb300"; }, 2500);
             resetTurn(); 
         });
     </script>
