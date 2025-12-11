@@ -12,7 +12,7 @@
             --tile-color: #f3e5ab; --tile-text: #2c3e50;
             --ui-dark: #2c3e50; --ui-gold: #d4af37; 
             --wood-dark: #5d4037; --wood-light: #8d6e63;
-            --header-h: 70px; --footer-h: 130px;
+            --header-h: 80px; --footer-h: 140px;
         }
 
         * { box-sizing: border-box; }
@@ -27,128 +27,130 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
 
-        /* --- LOGIN SCREEN OVERLAY --- */
+        /* --- LOGIN --- */
         #login-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); /* Dunkel, transparent */
-            backdrop-filter: blur(5px);
-            z-index: 1000;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(5px);
+            z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
         #login-box {
-            background: var(--bg-color);
-            padding: 30px; border-radius: 10px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            text-align: center; border: 4px solid var(--ui-gold);
-            width: 90%; max-width: 400px;
+            background: var(--bg-color); padding: 30px; border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; border: 4px solid var(--ui-gold);
+            width: 90%; max-width: 400px; display: flex; flex-direction: column; gap: 15px;
         }
-        #login-box h2 { font-family: 'Cinzel', serif; margin-top: 0; color: var(--wood-dark); }
-        #player-name-input {
-            width: 100%; padding: 15px; font-size: 1.2rem;
-            border: 2px solid var(--wood-light); border-radius: 5px;
-            margin-bottom: 20px; text-align: center; font-weight: bold;
-        }
+        #login-box h2 { font-family: 'Cinzel', serif; margin: 0 0 10px 0; color: var(--wood-dark); }
+        .inp { padding: 12px; font-size: 1.1rem; border: 2px solid var(--wood-light); border-radius: 5px; text-align: center; font-weight: bold; }
         #btn-start {
-            width: 100%; padding: 15px; font-size: 1.2rem; font-weight: bold;
+            padding: 15px; font-size: 1.2rem; font-weight: bold;
             background: linear-gradient(to bottom, #27ae60, #219150);
-            color: white; border: none; border-radius: 5px; cursor: pointer;
-            text-transform: uppercase; box-shadow: 0 4px 0 #145a32;
+            color: white; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase;
         }
-        #btn-start:active { transform: translateY(2px); box-shadow: none; }
 
-        /* --- GAME UI --- */
+        /* --- SCOREBOARD --- */
         #scoreboard {
-            height: var(--header-h); width: 98%; max-width: 600px;
-            display: flex; justify-content: space-between; align-items: center;
+            height: var(--header-h); width: 98%; max-width: 700px;
+            display: flex; justify-content: space-around; align-items: center;
             background: linear-gradient(to bottom, #34495e, #2c3e50);
             border-bottom: 3px solid var(--ui-gold);
-            border-radius: 0 0 15px 15px; padding: 0 15px;
+            border-radius: 0 0 15px 15px; padding: 0 10px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3); color: #ecf0f1;
-            flex-shrink: 0; font-family: 'Cinzel', serif;
+            flex-shrink: 0;
         }
-        .player-score { display: flex; flex-direction: column; align-items: center; opacity: 0.4; transition: all 0.3s; transform: scale(0.9); width: 100px;}
-        .player-score.active-turn { opacity: 1; color: var(--ui-gold); text-shadow: 0 0 10px rgba(212, 175, 55, 0.5); transform: scale(1.1); font-weight: bold; }
+        .player-badge {
+            display: flex; flex-direction: column; align-items: center;
+            opacity: 0.5; transition: all 0.3s; width: 25%;
+        }
+        .player-badge.active-turn { opacity: 1; color: var(--ui-gold); text-shadow: 0 0 10px rgba(212, 175, 55, 0.5); transform: scale(1.05); font-weight: bold; }
+        .p-name { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 1px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .p-score { font-size: 1.2em; font-weight: 900; font-family: 'Cinzel', serif;}
         
-        .score-label { font-size: 0.7rem; letter-spacing: 1px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;}
-        .score-val { font-size: 1.4em; font-weight: bold; }
-        
-        #status { 
-            flex-grow: 1; text-align: center;
-            font-family: 'Roboto', sans-serif; font-size: 1em; color: var(--ui-gold); 
-            font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
-            padding: 0 10px;
+        #game-info {
+            position: absolute; top: 85px; width: 100%; text-align: center;
+            font-size: 0.8rem; font-weight: bold; color: var(--wood-dark); pointer-events: none;
         }
 
+        /* --- BOARD --- */
         #board-wrapper { flex-grow: 1; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 5px; }
         #game-board { 
             display: grid; grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr);
             gap: 2px; background: var(--grid-gap); border: 5px solid var(--board-border); border-radius: 4px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            width: min(96vw, calc(100dvh - 210px)); height: min(96vw, calc(100dvh - 210px));
-            aspect-ratio: 1 / 1; 
+            width: min(96vw, calc(100dvh - 240px)); height: min(96vw, calc(100dvh - 240px));
+            aspect-ratio: 1 / 1; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
         .cell { background: var(--field-green); display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; user-select: none; }
-        .cell-label { font-size: clamp(6px, 1.5vh, 10px); font-weight: bold; opacity: 0.7; text-align: center; pointer-events: none; }
+        .cell-label { font-size: clamp(6px, 1.5vh, 10px); font-weight: bold; opacity: 0.7; pointer-events: none; }
         .tw { background-color: #b71c1c; .cell-label { color: #fff; } } .dw { background-color: #f57f17; .cell-label { color: #fff; } } 
         .tl { background-color: #0d47a1; .cell-label { color: #fff; } } .dl { background-color: #0288d1; .cell-label { color: #fff; } } 
-        .center { background-color: #f57f17; display: flex; align-items: center; justify-content: center; }
-        .star { font-size: 1.5em; color: #fff; line-height: 0; padding-bottom: 5px; }
+        .center { background-color: #f57f17; } .star { font-size: 1.5em; color: #fff; padding-bottom: 5px; }
         
         .tile-look {
             background: linear-gradient(135deg, #fffdf0 0%, #f3e5ab 100%); color: var(--tile-text);
             width: 92%; height: 92%; border-radius: 10%;
-            box-shadow: 2px 2px 4px rgba(0,0,0,0.4), inset 0 0 2px rgba(255,255,255,0.5);
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.4);
             display: flex; justify-content: center; align-items: center; position: relative; z-index: 10;
         }
-        .tile-letter { font-size: 68%; font-weight: 900; }
-        .tile-score { position: absolute; bottom: 8%; right: 10%; font-size: 32%; font-weight: 600; color: #444; }
+        .tile-letter { font-size: 65%; font-weight: 900; }
+        .tile-score { position: absolute; bottom: 8%; right: 10%; font-size: 30%; font-weight: 600; color: #444; }
         .preview .tile-look { opacity: 0.7; box-shadow: none; border: 2px dotted #333; background: #fff; }
 
-        #ui-container { height: var(--footer-h); width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 10px; padding: 0 10px 10px 10px; justify-content: flex-end; flex-shrink: 0; }
+        /* --- UI CONTAINER --- */
+        #ui-container { height: var(--footer-h); width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 8px; padding: 0 10px 10px 10px; justify-content: flex-end; flex-shrink: 0; }
+        
         #rack { 
-            background: linear-gradient(to bottom, var(--wood-dark), var(--wood-light)); padding: 8px 10px 4px 10px;
-            border-radius: 10px 10px 4px 4px; display: flex; justify-content: center; gap: 4px; height: 60px; 
-            box-shadow: inset 0 4px 8px rgba(0,0,0,0.6), 0 5px 10px rgba(0,0,0,0.3); position: relative;
+            background: linear-gradient(to bottom, var(--wood-dark), var(--wood-light)); padding: 6px 10px 4px 10px;
+            border-radius: 8px; display: flex; justify-content: center; gap: 4px; height: 55px; 
+            box-shadow: inset 0 3px 6px rgba(0,0,0,0.6); position: relative;
         }
-        #rack::after { content: ''; position: absolute; bottom: 0; left:0; right:0; height: 5px; background: var(--wood-dark); border-radius: 0 0 4px 4px; box-shadow: inset 0 -1px 2px rgba(0,0,0,0.5); }
         .hand-slot { height: 90%; aspect-ratio: 1/1; display: flex; align-items: flex-end; justify-content: center; cursor: pointer; transition: transform 0.2s; z-index: 2; }
         .hand-slot.selected { transform: translateY(-15px); }
+        /* Roter Rahmen für Swap-Modus */
+        .hand-slot.swap-selected .tile-look { border: 2px solid #e74c3c; box-shadow: 0 0 10px #e74c3c; }
 
-        #controls { display: flex; justify-content: center; gap: 15px; height: 45px; }
+        #controls { display: grid; grid-template-columns: 1fr 1fr 1fr 1.5fr; gap: 8px; height: 45px; }
+        
         button { 
-            flex: 1; max-width: 180px; font-size: 0.9rem; font-family: 'Roboto', sans-serif;
-            border: none; border-radius: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; cursor: pointer;
-            touch-action: manipulation; transition: all 0.2s; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2); position: relative; overflow: hidden;
+            font-size: 0.8rem; font-family: 'Roboto', sans-serif;
+            border: none; border-radius: 8px; font-weight: bold; text-transform: uppercase; cursor: pointer;
+            color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3); box-shadow: 0 3px 0 rgba(0,0,0,0.2);
+            transition: all 0.2s;
         }
-        button:disabled { background: #7f8c8d; cursor: not-allowed; box-shadow: none; transform: none; opacity: 0.5; }
-        .btn-submit { background: linear-gradient(to bottom, #2ecc71, #27ae60); }
-        .btn-submit:active { transform: translateY(2px); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-        .btn-reset { background: linear-gradient(to bottom, #e74c3c, #c0392b); }
-        .btn-reset:active { transform: translateY(2px); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        button:active { transform: translateY(2px); box-shadow: none; }
+        button:disabled { background: #95a5a6; cursor: not-allowed; opacity: 0.5; box-shadow: none; transform: none; }
+
+        .btn-pass { background: #7f8c8d; }
+        .btn-swap { background: #3498db; }
+        .btn-reset { background: #e74c3c; }
+        .btn-submit { background: #27ae60; }
+
+        /* Swap Modus aktiv */
+        body.swapping .btn-swap { background: #e67e22; animation: pulse 1s infinite; }
+        body.swapping .btn-submit { content: 'Tausch bestätigen'; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+
+        /* Notification */
+        #msg-overlay {
+            position: fixed; top: 100px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); color: white; padding: 10px 20px;
+            border-radius: 20px; font-weight: bold; pointer-events: none; opacity: 0; transition: opacity 0.5s;
+        }
     </style>
 </head>
 <body>
 
     <div id="login-screen">
         <div id="login-box">
-            <h2>Willkommen Chef</h2>
-            <input type="text" id="player-name-input" placeholder="Dein Name" maxlength="12">
-            <button id="btn-start">Spiel starten</button>
+            <h2>Scrabble Chef</h2>
+            <input type="text" id="inp-room" class="inp" placeholder="Raum Name (z.B. LOBBY)" value="LOBBY">
+            <input type="text" id="inp-name" class="inp" placeholder="Dein Name" maxlength="10">
+            <button id="btn-start">Beitreten</button>
         </div>
     </div>
     
     <div id="scoreboard">
-        <div class="player-score" id="p1-score">
-            <span class="score-label" id="p1-name">WARTE...</span>
-            <span class="score-val" id="score-0">0</span>
         </div>
-        <div id="status">Warte...</div>
-        <div class="player-score" id="p2-score">
-            <span class="score-label" id="p2-name">WARTE...</span>
-            <span class="score-val" id="score-1">0</span>
-        </div>
-    </div>
+
+    <div id="game-info">Warte auf Verbindung...</div>
+    <div id="msg-overlay"></div>
 
     <div id="board-wrapper">
         <div id="game-board"></div>
@@ -157,8 +159,10 @@
     <div id="ui-container">
         <div id="rack"></div>
         <div id="controls">
-            <button class="btn-reset" id="btn-reset" onclick="resetTurn()" disabled>Zurück</button>
-            <button class="btn-submit" id="btn-submit" onclick="submitTurn()" disabled>Legen</button>
+            <button class="btn-pass" id="btn-pass" onclick="actionPass()">Pass</button>
+            <button class="btn-swap" id="btn-swap" onclick="toggleSwapMode()">Tausch</button>
+            <button class="btn-reset" id="btn-reset" onclick="resetTurn()">Reset</button>
+            <button class="btn-submit" id="btn-submit" onclick="submitAction()">LEGEN</button>
         </div>
     </div>
 
@@ -166,222 +170,264 @@
     <script>
         const socket = io();
         
-        // Elemente
-        const loginScreen = document.getElementById('login-screen');
-        const nameInput = document.getElementById('player-name-input');
-        const btnStart = document.getElementById('btn-start');
-        
-        const boardElement = document.getElementById('game-board');
+        // UI Elemente
+        const scoreboard = document.getElementById('scoreboard');
+        const gameInfo = document.getElementById('game-info');
+        const msgOverlay = document.getElementById('msg-overlay');
         const rackElement = document.getElementById('rack');
-        const statusElement = document.getElementById('status');
+        const boardElement = document.getElementById('game-board');
         const btnSubmit = document.getElementById('btn-submit');
-        const btnReset = document.getElementById('btn-reset');
-        
-        let selectedTile = null; 
+        const btnSwap = document.getElementById('btn-swap');
+
+        // State
         let myHand = []; 
         let currentBoard = Array(225).fill(null);
-        let currentTurnMoves = []; 
+        let currentTurnMoves = []; // Fürs Legen
+        let swapSelectedLetters = []; // Fürs Tauschen
         
-        let myPlayerIndex = -1;
+        let myId = null;
         let activePlayerIndex = 0;
+        let players = [];
+        let isSwapMode = false;
+        let isMyTurn = false;
 
-        // Login Logik
-        btnStart.addEventListener('click', () => {
-            const name = nameInput.value.trim();
-            if (name) {
-                socket.emit('join-game', name);
-                loginScreen.style.display = 'none';
-            } else {
-                alert("Bitte Namen eingeben!");
+        const LETTER_SCORES = { "A":1,"B":3,"C":4,"D":1,"E":1,"F":4,"G":2,"H":2,"I":1,"J":6,"K":4,"L":2,"M":3,"N":1,"O":2,"P":4,"Q":10,"R":1,"S":1,"T":1,"U":1,"V":6,"W":3,"X":8,"Y":10,"Z":3 };
+
+        // --- LOGIN ---
+        document.getElementById('btn-start').addEventListener('click', () => {
+            const name = document.getElementById('inp-name').value.trim();
+            const room = document.getElementById('inp-room').value.trim();
+            if(name && room) {
+                socket.emit('join-game', { name, roomId: room });
+                document.getElementById('login-screen').style.display = 'none';
             }
         });
 
-        const LETTER_SCORES = {
-            "A": 1, "B": 3, "C": 4, "D": 1, "E": 1, "F": 4, "G": 2, "H": 2, 
-            "I": 1, "J": 6, "K": 4, "L": 2, "M": 3, "N": 1, "O": 2, "P": 4, 
-            "Q": 10, "R": 1, "S": 1, "T": 1, "U": 1, "V": 6, "W": 3, "X": 8, 
-            "Y": 10, "Z": 3
-        };
-
-        function getCellType(x, y) {
-            const k = x + "," + y;
-            if (k === "7,7") return "center";
-            if ((x===0||x===7||x===14) && (y===0||y===7||y===14) && k!=="7,7") return "tw"; 
-            if (x===y || x+y===14) { if(x>=1 && x<=4) return "dw"; if(x>=10 && x<=13) return "dw"; }
-            if ((x===5||x===9) && (y===1||y===5||y===9||y===13)) return "tl";
-            if ((y===5||y===9) && (x===1||x===5||x===9||x===13)) return "tl";
-            if ((x===3||x===11) && (y===0||y===7||y===14)) return "dl";
-            if ((y===3||y===11) && (x===0||x===7||x===14)) return "dl";
-            if ((x===2||x===6||x===8||x===12) && (y===6||y===8)) return "dl";
-            if ((y===2||y===6||y===8||y===12) && (x===6||x===8)) return "dl";
-            return "";
+        // --- HELPER ---
+        function showMsg(text) {
+            msgOverlay.innerText = text;
+            msgOverlay.style.opacity = 1;
+            setTimeout(() => msgOverlay.style.opacity = 0, 3000);
         }
 
         function createTileHTML(letter) {
-            const score = LETTER_SCORES[letter] !== undefined ? LETTER_SCORES[letter] : 0;
+            const score = LETTER_SCORES[letter] || 0;
             return `<div class="tile-look"><span class="tile-letter">${letter}</span><span class="tile-score">${score}</span></div>`;
         }
 
-        // Board Render
-        for (let i = 0; i < 225; i++) {
-            const cell = document.createElement('div');
-            cell.classList.add('cell');
-            const x = i % 15; const y = Math.floor(i / 15);
-            const type = getCellType(x, y);
-            if(type) cell.classList.add(type);
-            
-            let labelText = "";
-            if(type === 'tw') labelText = "3W"; else if(type === 'dw') labelText = "2W";
-            else if(type === 'tl') labelText = "3B"; else if(type === 'dl') labelText = "2B";
-            if (type === 'center') cell.innerHTML = '<span class="star">★</span>';
-            else if (labelText) cell.innerHTML = `<span class="cell-label">${labelText}</span>`;
+        function getCellType(i) {
+            const x = i % 15; const y = Math.floor(i / 15); const k = x+","+y;
+            if (k==="7,7") return "center";
+            if ((x===0||x===7||x===14)&&(y===0||y===7||y===14)&&k!=="7,7") return "tw";
+            if (x===y||x+y===14) { if(x>=1&&x<=4) return "dw"; if(x>=10&&x<=13) return "dw"; }
+            if ((x===5||x===9)&&(y===1||y===5||y===9||y===13)) return "tl";
+            if ((y===5||y===9)&&(x===1||x===5||x===9||x===13)) return "tl";
+            if ((x===3||x===11)&&(y===0||y===7||y===14)) return "dl";
+            if ((y===3||y===11)&&(x===0||x===7||x===14)) return "dl";
+            if ((x===2||x===6||x===8||x===12)&&(y===6||y===8)) return "dl";
+            if ((y===2||y===6||y===8||y===12)&&(x===6||x===8)) return "dl";
+            return "";
+        }
 
-            cell.dataset.index = i;
-            cell.addEventListener('click', () => {
-                if (myPlayerIndex !== activePlayerIndex) return;
-                const isOccupiedServer = currentBoard[i] !== null;
-                const isOccupiedLocal = currentTurnMoves.find(m => m.index === i);
-                if (!isOccupiedServer && !isOccupiedLocal && selectedTile) {
-                    cell.innerHTML = createTileHTML(selectedTile.letter);
-                    cell.classList.add('preview');
-                    currentTurnMoves.push({ index: i, letter: selectedTile.letter });
-                    myHand.splice(selectedTile.handIndex, 1);
-                    selectedTile = null;
-                    renderHand();
-                }
+        // --- CORE LOGIC ---
+        function updateUI() {
+            // Scoreboard bauen
+            scoreboard.innerHTML = '';
+            players.forEach((p, idx) => {
+                const isActive = idx === activePlayerIndex;
+                const isMe = p.id === myId;
+                const badge = document.createElement('div');
+                badge.className = `player-badge ${isActive ? 'active-turn' : ''}`;
+                badge.innerHTML = `<span class="p-name">${p.name}${isMe?' (DU)':''}</span><span class="p-score">${p.score}</span>`;
+                scoreboard.appendChild(badge);
             });
-            boardElement.appendChild(cell);
+
+            isMyTurn = (players[activePlayerIndex]?.id === myId);
+            gameInfo.innerText = isMyTurn ? "DU BIST AM ZUG" : `WARTE AUF ${players[activePlayerIndex]?.name || 'Spieler'}...`;
+            gameInfo.style.color = isMyTurn ? "#27ae60" : "#d35400";
+
+            // Buttons enablen/disablen
+            const btns = document.querySelectorAll('button');
+            btns.forEach(b => b.disabled = !isMyTurn);
+            
+            // Text von Submit Button
+            btnSubmit.innerText = isSwapMode ? "TAUSCH BESTÄTIGEN" : "LEGEN";
+            
+            renderBoard();
+            renderHand();
+        }
+
+        function renderBoard() {
+            boardElement.innerHTML = '';
+            for (let i = 0; i < 225; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell ' + getCellType(i);
+                cell.dataset.index = i;
+                
+                // Labels
+                if(!currentBoard[i]) {
+                    const type = getCellType(i);
+                    let txt = "";
+                    if(type==='tw') txt="3W"; if(type==='dw') txt="2W";
+                    if(type==='tl') txt="3B"; if(type==='dl') txt="2B";
+                    if(type==='center') cell.innerHTML = '<span class="star">★</span>';
+                    else if(txt) cell.innerHTML = `<span class="cell-label">${txt}</span>`;
+                }
+
+                // Check lokale Vorschau
+                const localMove = currentTurnMoves.find(m => m.index === i);
+                
+                if (currentBoard[i]) {
+                    cell.innerHTML = createTileHTML(currentBoard[i]);
+                } else if (localMove) {
+                    cell.innerHTML = createTileHTML(localMove.letter);
+                    cell.classList.add('preview');
+                }
+
+                cell.onclick = () => handleBoardClick(i);
+                boardElement.appendChild(cell);
+            }
         }
 
         function renderHand() {
             rackElement.innerHTML = '';
             myHand.forEach((letter, idx) => {
                 const slot = document.createElement('div');
-                slot.classList.add('hand-slot');
-                slot.innerHTML = createTileHTML(letter);
-                slot.addEventListener('click', () => {
-                    if (myPlayerIndex !== activePlayerIndex) return; 
-                    document.querySelectorAll('.hand-slot').forEach(t => t.classList.remove('selected'));
-                    slot.classList.add('selected');
-                    selectedTile = { letter: letter, handIndex: idx };
-                });
+                slot.className = 'hand-slot';
+                
+                // Visualisierung Auswahl
+                const isSelectedForMove = currentTurnMoves.some(m => m.letter === letter && m.handIndex === idx); // Logic flaw fix needed here usually, simplified
+                // Vereinfachte Auswahl-Logik: Wir nutzen globale Variable für EINZELNE Auswahl beim Legen
+                
+                if (isSwapMode) {
+                    if (swapSelectedLetters.includes(idx)) slot.classList.add('swap-selected');
+                } else {
+                    if (selectedTile && selectedTile.handIndex === idx) slot.classList.add('selected');
+                }
+
+                if (!isSelectedForMove) { // Nur anzeigen wenn nicht schon auf Brett gelegt
+                    slot.innerHTML = createTileHTML(letter);
+                    slot.onclick = () => handleHandClick(letter, idx);
+                }
                 rackElement.appendChild(slot);
             });
         }
 
-        function resetTurn() {
-            currentTurnMoves.forEach(move => myHand.push(move.letter));
-            currentTurnMoves = [];
-            renderHand();
-            updateBoardView(); 
-        }
+        // --- INTERACTION ---
+        function handleHandClick(letter, idx) {
+            if (!isMyTurn) return;
 
-        function submitTurn() {
-            if (currentTurnMoves.length === 0) return;
-            socket.emit('submit-turn', currentTurnMoves);
-        }
-
-        function updateBoardView() {
-            const cells = document.querySelectorAll('.cell');
-            cells.forEach((cell, i) => {
-                const x = i % 15; const y = Math.floor(i / 15);
-                const type = getCellType(x, y);
-                cell.className = 'cell'; 
-                if(type) cell.classList.add(type);
-
-                if (currentBoard[i]) {
-                    cell.innerHTML = createTileHTML(currentBoard[i]);
+            if (isSwapMode) {
+                // Toggle Selection für Swap
+                if (swapSelectedLetters.includes(idx)) {
+                    swapSelectedLetters = swapSelectedLetters.filter(i => i !== idx);
                 } else {
-                    let labelText = "";
-                    if(type === 'tw') labelText = "3W"; else if(type === 'dw') labelText = "2W";
-                    else if(type === 'tl') labelText = "3B"; else if(type === 'dl') labelText = "2B";
-                    if (type === 'center') cell.innerHTML = '<span class="star">★</span>';
-                    else if (labelText) cell.innerHTML = `<span class="cell-label">${labelText}</span>`;
-                    else cell.innerHTML = '';
+                    swapSelectedLetters.push(idx);
                 }
-            });
+            } else {
+                // Select für Move
+                // Reset Swap selection just in case
+                swapSelectedLetters = [];
+                // Toggle
+                if (selectedTile && selectedTile.handIndex === idx) selectedTile = null;
+                else selectedTile = { letter, handIndex: idx };
+            }
+            renderHand();
         }
 
-        function updateTurnState() {
-            const p1 = document.getElementById('p1-score');
-            const p2 = document.getElementById('p2-score');
+        function handleBoardClick(index) {
+            if (!isMyTurn || isSwapMode) return;
             
-            p1.classList.remove('active-turn');
-            p2.classList.remove('active-turn');
-            if(activePlayerIndex === 0) p1.classList.add('active-turn');
-            if(activePlayerIndex === 1) p2.classList.add('active-turn');
-
-            if(myPlayerIndex === -1) {
-                statusElement.innerText = "ZUSCHAUER / VOLL";
-                statusElement.style.color = "#ccc";
+            // Stein wieder aufnehmen?
+            const existingMoveIdx = currentTurnMoves.findIndex(m => m.index === index);
+            if (existingMoveIdx !== -1) {
+                const move = currentTurnMoves[existingMoveIdx];
+                currentTurnMoves.splice(existingMoveIdx, 1);
+                // Stein kommt zurück in Hand (visuell wird er beim re-render wieder sichtbar)
+                selectedTile = null;
+                renderBoard();
+                renderHand();
                 return;
             }
 
-            const isMyTurn = (myPlayerIndex === activePlayerIndex);
-            
-            if (isMyTurn) {
-                statusElement.innerText = "DU BIST DRAN!";
-                statusElement.style.color = "#2ecc71"; 
-                btnSubmit.disabled = false;
-                btnReset.disabled = false;
-                rackElement.style.opacity = "1";
-            } else {
-                statusElement.innerText = "GEGNER IST AM ZUG";
-                statusElement.style.color = "#e74c3c";
-                btnSubmit.disabled = true;
-                btnReset.disabled = true;
-                rackElement.style.opacity = "0.6";
+            // Stein legen
+            if (selectedTile && !currentBoard[index]) {
+                currentTurnMoves.push({ index: index, letter: selectedTile.letter, handIndex: selectedTile.handIndex });
                 selectedTile = null;
-                document.querySelectorAll('.hand-slot').forEach(t => t.classList.remove('selected'));
+                renderBoard();
+                renderHand();
             }
         }
 
-        socket.on('player-assignment', (data) => {
-            myPlayerIndex = data.playerIndex;
-        });
+        // --- ACTIONS ---
+        function toggleSwapMode() {
+            if (currentTurnMoves.length > 0) resetTurn(); // Erst Brett leeren
+            isSwapMode = !isSwapMode;
+            swapSelectedLetters = [];
+            document.body.classList.toggle('swapping', isSwapMode);
+            updateUI();
+        }
 
-        socket.on('update-names', (names) => {
-            const p1Label = document.getElementById('p1-name');
-            const p2Label = document.getElementById('p2-name');
+        function resetTurn() {
+            currentTurnMoves = [];
+            selectedTile = null;
+            swapSelectedLetters = [];
+            isSwapMode = false;
+            document.body.classList.remove('swapping');
+            updateUI();
+        }
+
+        function actionPass() {
+            if(confirm("Wirklich passen?")) {
+                resetTurn();
+                socket.emit('action-pass');
+            }
+        }
+
+        function submitAction() {
+            if (isSwapMode) {
+                // Tauschen senden
+                if (swapSelectedLetters.length === 0) return;
+                const letters = swapSelectedLetters.map(idx => myHand[idx]);
+                socket.emit('action-swap', letters);
+                resetTurn();
+            } else {
+                // Legen senden
+                if (currentTurnMoves.length === 0) return;
+                const movesToSend = currentTurnMoves.map(m => ({ index: m.index, letter: m.letter }));
+                socket.emit('action-place', movesToSend);
+                // Wir resetten hier NICHT sofort, warten auf Server Update
+            }
+        }
+
+        // --- SOCKET EVENTS ---
+        socket.on('update-game-state', (state) => {
+            currentBoard = state.board;
+            players = state.players;
+            activePlayerIndex = state.activePlayerIndex;
+            myId = socket.id;
             
-            // Namen setzen
-            let p1Name = names[0] || "Warte...";
-            let p2Name = names[1] || "Warte...";
-
-            // "(DU)" Markierung hinzufügen
-            if (myPlayerIndex === 0) p1Name += " (DU)";
-            if (myPlayerIndex === 1) p2Name += " (DU)";
-
-            p1Label.innerText = p1Name;
-            p2Label.innerText = p2Name;
+            // Wenn der Zug erfolgreich war, ist currentTurnMoves hinfällig
+            currentTurnMoves = []; 
+            isSwapMode = false;
+            document.body.classList.remove('swapping');
+            
+            updateUI();
         });
 
-        socket.on('game-full', () => {
-            alert("Das Spiel ist leider schon voll!");
-            statusElement.innerText = "SPIEL IST VOLL";
-            myPlayerIndex = -1;
-            loginScreen.style.display = 'none'; // Trotzdem Screen wegmachen zum Zuschauen
+        socket.on('update-hand', (hand) => {
+            myHand = hand;
+            renderHand();
         });
 
-        socket.on('update-turn', (idx) => {
-            activePlayerIndex = idx;
-            updateTurnState();
+        socket.on('error-msg', (msg) => {
+            showMsg("⚠️ " + msg);
+            // Wenn Fehler beim Legen, holen wir Steine zurück
+            if(!isSwapMode) resetTurn();
         });
 
-        socket.on('update-hand', (newHand) => { myHand = newHand; renderHand(); });
-        socket.on('update-board', (boardData) => { currentBoard = boardData; currentTurnMoves = []; updateBoardView(); });
-        socket.on('update-scores', (playersData) => {
-            const score0 = document.getElementById('score-0');
-            const score1 = document.getElementById('score-1');
-            if(playersData[0]) score0.innerText = playersData[0].score;
-            if(playersData[1]) score1.innerText = playersData[1].score;
-        });
-        socket.on('move-error', (msg) => {
-            const oldT = statusElement.innerText;
-            statusElement.innerText = "⚠️ " + msg;
-            setTimeout(() => { updateTurnState(); }, 2500);
-            resetTurn(); 
-        });
+        socket.on('game-msg', (text) => showMsg(text));
+
     </script>
 </body>
 </html>
