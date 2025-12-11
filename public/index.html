@@ -100,10 +100,11 @@
             background: linear-gradient(to bottom, var(--wood-dark), var(--wood-light)); padding: 6px 10px 4px 10px;
             border-radius: 8px; display: flex; justify-content: center; gap: 4px; height: 55px; 
             box-shadow: inset 0 3px 6px rgba(0,0,0,0.6); position: relative;
+            /* WICHTIG: Rack ist immer voll sichtbar, damit man sortieren kann */
+            opacity: 1 !important; 
         }
         .hand-slot { height: 90%; aspect-ratio: 1/1; display: flex; align-items: flex-end; justify-content: center; cursor: pointer; transition: transform 0.2s; z-index: 2; }
         .hand-slot.selected { transform: translateY(-15px); }
-        /* Roter Rahmen für Swap-Modus */
         .hand-slot.swap-selected .tile-look { border: 2px solid #e74c3c; box-shadow: 0 0 10px #e74c3c; }
 
         #controls { display: grid; grid-template-columns: 1fr 1fr 1fr 1.5fr; gap: 8px; height: 45px; }
@@ -122,12 +123,10 @@
         .btn-reset { background: #e74c3c; }
         .btn-submit { background: #27ae60; }
 
-        /* Swap Modus aktiv */
         body.swapping .btn-swap { background: #e67e22; animation: pulse 1s infinite; }
         body.swapping .btn-submit { content: 'Tausch bestätigen'; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
 
-        /* Notification */
         #msg-overlay {
             position: fixed; top: 100px; left: 50%; transform: translateX(-50%);
             background: rgba(0,0,0,0.8); color: white; padding: 10px 20px;
@@ -146,9 +145,7 @@
         </div>
     </div>
     
-    <div id="scoreboard">
-        </div>
-
+    <div id="scoreboard"></div>
     <div id="game-info">Warte auf Verbindung...</div>
     <div id="msg-overlay"></div>
 
@@ -169,8 +166,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        
-        // UI Elemente
         const scoreboard = document.getElementById('scoreboard');
         const gameInfo = document.getElementById('game-info');
         const msgOverlay = document.getElementById('msg-overlay');
@@ -179,12 +174,13 @@
         const btnSubmit = document.getElementById('btn-submit');
         const btnSwap = document.getElementById('btn-swap');
 
-        // State
         let myHand = []; 
         let currentBoard = Array(225).fill(null);
-        let currentTurnMoves = []; // Fürs Legen
-        let swapSelectedLetters = []; // Fürs Tauschen
+        let currentTurnMoves = []; 
+        let swapSelectedLetters = []; 
         
+        let selectedTile = null; // Für Auswahl (Legen oder Sortieren)
+
         let myId = null;
         let activePlayerIndex = 0;
         let players = [];
@@ -193,7 +189,6 @@
 
         const LETTER_SCORES = { "A":1,"B":3,"C":4,"D":1,"E":1,"F":4,"G":2,"H":2,"I":1,"J":6,"K":4,"L":2,"M":3,"N":1,"O":2,"P":4,"Q":10,"R":1,"S":1,"T":1,"U":1,"V":6,"W":3,"X":8,"Y":10,"Z":3 };
 
-        // --- LOGIN ---
         document.getElementById('btn-start').addEventListener('click', () => {
             const name = document.getElementById('inp-name').value.trim();
             const room = document.getElementById('inp-room').value.trim();
@@ -203,7 +198,6 @@
             }
         });
 
-        // --- HELPER ---
         function showMsg(text) {
             msgOverlay.innerText = text;
             msgOverlay.style.opacity = 1;
@@ -229,9 +223,7 @@
             return "";
         }
 
-        // --- CORE LOGIC ---
         function updateUI() {
-            // Scoreboard bauen
             scoreboard.innerHTML = '';
             players.forEach((p, idx) => {
                 const isActive = idx === activePlayerIndex;
@@ -246,11 +238,11 @@
             gameInfo.innerText = isMyTurn ? "DU BIST AM ZUG" : `WARTE AUF ${players[activePlayerIndex]?.name || 'Spieler'}...`;
             gameInfo.style.color = isMyTurn ? "#27ae60" : "#d35400";
 
-            // Buttons enablen/disablen
-            const btns = document.querySelectorAll('button');
+            // Buttons: Controls nur aktiv wenn ich dran bin. 
+            // ABER: Rack ist IMMER interaktiv zum Sortieren.
+            const btns = document.querySelectorAll('#controls button');
             btns.forEach(b => b.disabled = !isMyTurn);
             
-            // Text von Submit Button
             btnSubmit.innerText = isSwapMode ? "TAUSCH BESTÄTIGEN" : "LEGEN";
             
             renderBoard();
@@ -264,7 +256,6 @@
                 cell.className = 'cell ' + getCellType(i);
                 cell.dataset.index = i;
                 
-                // Labels
                 if(!currentBoard[i]) {
                     const type = getCellType(i);
                     let txt = "";
@@ -274,7 +265,6 @@
                     else if(txt) cell.innerHTML = `<span class="cell-label">${txt}</span>`;
                 }
 
-                // Check lokale Vorschau
                 const localMove = currentTurnMoves.find(m => m.index === i);
                 
                 if (currentBoard[i]) {
@@ -296,8 +286,7 @@
                 slot.className = 'hand-slot';
                 
                 // Visualisierung Auswahl
-                const isSelectedForMove = currentTurnMoves.some(m => m.letter === letter && m.handIndex === idx); // Logic flaw fix needed here usually, simplified
-                // Vereinfachte Auswahl-Logik: Wir nutzen globale Variable für EINZELNE Auswahl beim Legen
+                const isPlaced = currentTurnMoves.some(m => m.letter === letter && m.handIndex === idx);
                 
                 if (isSwapMode) {
                     if (swapSelectedLetters.includes(idx)) slot.classList.add('swap-selected');
@@ -305,7 +294,7 @@
                     if (selectedTile && selectedTile.handIndex === idx) slot.classList.add('selected');
                 }
 
-                if (!isSelectedForMove) { // Nur anzeigen wenn nicht schon auf Brett gelegt
+                if (!isPlaced) { 
                     slot.innerHTML = createTileHTML(letter);
                     slot.onclick = () => handleHandClick(letter, idx);
                 }
@@ -313,24 +302,39 @@
             });
         }
 
-        // --- INTERACTION ---
         function handleHandClick(letter, idx) {
-            if (!isMyTurn) return;
-
+            // Modus 1: Tausch-Modus (Server Interaktion)
             if (isSwapMode) {
-                // Toggle Selection für Swap
+                if(!isMyTurn) return; // Tauschen nur wenn dran
                 if (swapSelectedLetters.includes(idx)) {
                     swapSelectedLetters = swapSelectedLetters.filter(i => i !== idx);
                 } else {
                     swapSelectedLetters.push(idx);
                 }
+                renderHand();
+                return;
+            }
+
+            // Modus 2: Sortieren & Legen
+            if (selectedTile) {
+                // Fall: Ich klicke auf einen ANDEREN Stein im Rack -> TAUSCHEN (Sortieren)
+                // Das geht IMMER, auch wenn ich nicht dran bin.
+                if (selectedTile.handIndex !== idx) {
+                    // Tausche im Array
+                    const temp = myHand[selectedTile.handIndex];
+                    myHand[selectedTile.handIndex] = myHand[idx];
+                    myHand[idx] = temp;
+                    
+                    selectedTile = null; // Auswahl aufheben nach Tausch
+                    renderHand();
+                    return; 
+                } else {
+                    // Klick auf gleichen Stein -> Deselect
+                    selectedTile = null;
+                }
             } else {
-                // Select für Move
-                // Reset Swap selection just in case
-                swapSelectedLetters = [];
-                // Toggle
-                if (selectedTile && selectedTile.handIndex === idx) selectedTile = null;
-                else selectedTile = { letter, handIndex: idx };
+                // Nichts ausgewählt -> Auswählen
+                selectedTile = { letter, handIndex: idx };
             }
             renderHand();
         }
@@ -341,16 +345,14 @@
             // Stein wieder aufnehmen?
             const existingMoveIdx = currentTurnMoves.findIndex(m => m.index === index);
             if (existingMoveIdx !== -1) {
-                const move = currentTurnMoves[existingMoveIdx];
                 currentTurnMoves.splice(existingMoveIdx, 1);
-                // Stein kommt zurück in Hand (visuell wird er beim re-render wieder sichtbar)
                 selectedTile = null;
                 renderBoard();
                 renderHand();
                 return;
             }
 
-            // Stein legen
+            // Stein legen (nur wenn ausgewählt und Feld leer)
             if (selectedTile && !currentBoard[index]) {
                 currentTurnMoves.push({ index: index, letter: selectedTile.letter, handIndex: selectedTile.handIndex });
                 selectedTile = null;
@@ -359,9 +361,8 @@
             }
         }
 
-        // --- ACTIONS ---
         function toggleSwapMode() {
-            if (currentTurnMoves.length > 0) resetTurn(); // Erst Brett leeren
+            if (currentTurnMoves.length > 0) resetTurn(); 
             isSwapMode = !isSwapMode;
             swapSelectedLetters = [];
             document.body.classList.toggle('swapping', isSwapMode);
@@ -386,32 +387,25 @@
 
         function submitAction() {
             if (isSwapMode) {
-                // Tauschen senden
                 if (swapSelectedLetters.length === 0) return;
                 const letters = swapSelectedLetters.map(idx => myHand[idx]);
                 socket.emit('action-swap', letters);
                 resetTurn();
             } else {
-                // Legen senden
                 if (currentTurnMoves.length === 0) return;
                 const movesToSend = currentTurnMoves.map(m => ({ index: m.index, letter: m.letter }));
                 socket.emit('action-place', movesToSend);
-                // Wir resetten hier NICHT sofort, warten auf Server Update
             }
         }
 
-        // --- SOCKET EVENTS ---
         socket.on('update-game-state', (state) => {
             currentBoard = state.board;
             players = state.players;
             activePlayerIndex = state.activePlayerIndex;
             myId = socket.id;
-            
-            // Wenn der Zug erfolgreich war, ist currentTurnMoves hinfällig
             currentTurnMoves = []; 
             isSwapMode = false;
             document.body.classList.remove('swapping');
-            
             updateUI();
         });
 
@@ -422,7 +416,6 @@
 
         socket.on('error-msg', (msg) => {
             showMsg("⚠️ " + msg);
-            // Wenn Fehler beim Legen, holen wir Steine zurück
             if(!isSwapMode) resetTurn();
         });
 
