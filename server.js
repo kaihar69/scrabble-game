@@ -7,7 +7,7 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// --- Konfiguration: Buchstabenwerte ---
+// --- Konfiguration ---
 const LETTER_SCORES = {
     "A": 1, "B": 3, "C": 4, "D": 1, "E": 1, "F": 4, "G": 2, "H": 2, 
     "I": 1, "J": 6, "K": 4, "L": 2, "M": 3, "N": 1, "O": 2, "P": 4, 
@@ -15,7 +15,6 @@ const LETTER_SCORES = {
     "Y": 10, "Z": 3
 };
 
-// --- Konfiguration: Buchstabenbeutel ---
 const INITIAL_BAG = [];
 const distribution = [
     { l: 'E', c: 15 }, { l: 'N', c: 9 }, { l: 'S', c: 7 }, { l: 'I', c: 6 }, 
@@ -36,37 +35,17 @@ function shuffle(array) {
     return array;
 }
 
-// Ermittelt Multiplikatoren für ein Feld (Muss zum Frontend passen!)
 function getMultipliers(index) {
-    const x = index % 15;
-    const y = Math.floor(index / 15);
-    const k = x + "," + y;
-    
-    let wm = 1; // Wort-Multiplikator
-    let lm = 1; // Buchstaben-Multiplikator
-
-    // Mitte (Start) zählt als 2W
+    const x = index % 15; const y = Math.floor(index / 15); const k = x + "," + y;
     if (k === "7,7") return { wm: 2, lm: 1 };
-
-    // Triple Word (3W) - Rot
     if ((x===0||x===7||x===14) && (y===0||y===7||y===14)) return { wm: 3, lm: 1 };
-    
-    // Double Word (2W) - Orange/Pink
-    if ((x===y || x+y===14)) {
-         if(x>=1 && x<=4) return { wm: 2, lm: 1 };
-         if(x>=10 && x<=13) return { wm: 2, lm: 1 };
-    }
-
-    // Triple Letter (3B) - Dunkelblau
+    if ((x===y || x+y===14)) { if(x>=1 && x<=4) return { wm: 2, lm: 1 }; if(x>=10 && x<=13) return { wm: 2, lm: 1 }; }
     if ((x===5||x===9)&&(y===1||y===5||y===9||y===13)) return { wm: 1, lm: 3 };
     if ((y===5||y===9)&&(x===1||x===5||x===9||x===13)) return { wm: 1, lm: 3 };
-
-    // Double Letter (2B) - Hellblau
     if ((x===3||x===11)&&(y===0||y===7||y===14)) return { wm: 1, lm: 2 };
     if ((y===3||y===11)&&(x===0||x===7||x===14)) return { wm: 1, lm: 2 };
     if ((x===2||x===6||x===8||x===12) && (y===6||y===8)) return { wm: 1, lm: 2 };
     if ((y===2||y===6||y===8||y===12) && (x===6||x===8)) return { wm: 1, lm: 2 };
-    
     return { wm: 1, lm: 1 };
 }
 
@@ -76,7 +55,8 @@ let gameState = {
     players: {}, 
     playerOrder: [],
     tileBag: shuffle([...INITIAL_BAG]),
-    isFirstMove: true 
+    isFirstMove: true,
+    activePlayerIndex: 0 // NEU: Wer ist dran? (0 = Spieler 1)
 };
 
 function drawTiles(count) {
@@ -87,98 +67,57 @@ function drawTiles(count) {
     return drawn;
 }
 
-// --- Logik: Punkte berechnen ---
 function calculateMoveScore(moves, board) {
     let totalScore = 0;
     const newIndices = moves.map(m => m.index);
-    
-    // Temporäres Board simulieren
     let tempBoard = [...board];
     moves.forEach(m => tempBoard[m.index] = m.letter);
-
-    // Hauptrichtung erkennen
     const isHorizontal = moves.length > 1 ? (Math.floor(moves[0].index/15) === Math.floor(moves[1].index/15)) : true;
 
-    // Funktion um ein einzelnes Wort zu bewerten
     function scoreWordAt(startIndex, scanHorizontal) {
         let currentIdx = startIndex;
         const step = scanHorizontal ? 1 : 15;
-        
-        // Wortanfang suchen
         while(true) {
             const prev = currentIdx - step;
-            if (scanHorizontal && Math.floor(prev/15) !== Math.floor(currentIdx/15)) break; // Zeilengrenze
+            if (scanHorizontal && Math.floor(prev/15) !== Math.floor(currentIdx/15)) break;
             if (!scanHorizontal && prev < 0) break;
-            if (tempBoard[prev]) currentIdx = prev;
-            else break;
+            if (tempBoard[prev]) currentIdx = prev; else break;
         }
-
-        let wordScore = 0;
-        let wordMultiplier = 1;
-        let lettersCount = 0;
-
-        // Wort scannen
+        let wordScore = 0; let wordMultiplier = 1; let lettersCount = 0;
         while(true) {
             if (currentIdx >= 225) break;
-            if (scanHorizontal && Math.floor(currentIdx/15) !== Math.floor(startIndex/15) && currentIdx !== startIndex) break; // Zeilengrenze beim Scannen
-
+            if (scanHorizontal && Math.floor(currentIdx/15) !== Math.floor(startIndex/15) && currentIdx !== startIndex) break;
             const letter = tempBoard[currentIdx];
             if (!letter) break;
-
             let val = LETTER_SCORES[letter] || 0;
-            
-            // Multiplikatoren gelten nur für NEU gelegte Steine
             if (newIndices.includes(currentIdx)) {
                 const m = getMultipliers(currentIdx);
-                val *= m.lm;
-                wordMultiplier *= m.wm;
+                val *= m.lm; wordMultiplier *= m.wm;
             }
-
-            wordScore += val;
-            lettersCount++;
-            currentIdx += step;
+            wordScore += val; lettersCount++; currentIdx += step;
         }
-        
-        // Ein Wort muss mind. 2 Buchstaben haben
         return lettersCount > 1 ? wordScore * wordMultiplier : 0;
     }
 
-    // 1. Hauptwort berechnen
     let mainScore = scoreWordAt(moves[0].index, isHorizontal);
-    // Sonderfall: Einzelner Stein kann horizontal ODER vertikal gewertet werden
     if (moves.length === 1) mainScore += scoreWordAt(moves[0].index, !isHorizontal);
-    
     totalScore += mainScore;
-
-    // 2. Quer-Wörter berechnen
-    if (moves.length > 1) {
-        moves.forEach(m => {
-            totalScore += scoreWordAt(m.index, !isHorizontal);
-        });
-    }
-
-    // 3. Bingo Bonus (Alle 7 Steine gelegt)
+    if (moves.length > 1) { moves.forEach(m => { totalScore += scoreWordAt(m.index, !isHorizontal); }); }
     if (moves.length === 7) totalScore += 50;
-
     return totalScore;
 }
 
-// --- Logik: Zug validieren ---
 function validateMove(moves, board) {
     if (moves.length === 0) return { valid: false };
     const indices = moves.map(m => m.index).sort((a, b) => a - b);
     const coords = indices.map(i => ({ x: i % 15, y: Math.floor(i / 15) }));
-    
-    // Linie prüfen
     const allSameX = coords.every(c => c.x === coords[0].x);
     const allSameY = coords.every(c => c.y === coords[0].y);
     if (!allSameX && !allSameY) return { valid: false, msg: "Steine müssen in einer Linie liegen." };
 
-    // Startregel
     if (gameState.isFirstMove) {
-        if (!indices.includes(112)) return { valid: false, msg: "Erster Zug muss über den Stern (Mitte)." };
+        if (!indices.includes(112)) return { valid: false, msg: "Start muss in der Mitte sein." };
     } else {
-        // Anschlussregel
         let isConnected = false;
         const directions = [-1, 1, -15, 15];
         indices.forEach(idx => {
@@ -187,16 +126,14 @@ function validateMove(moves, board) {
                 if (n >= 0 && n < 225 && board[n] !== null) isConnected = true;
             });
         });
-        if (!isConnected) return { valid: false, msg: "Wort muss an bestehende Steine andocken." };
+        if (!isConnected) return { valid: false, msg: "Kein Anschluss." };
     }
     return { valid: true };
 }
 
-// --- Socket Events ---
 io.on('connection', (socket) => {
     console.log('Verbindung:', socket.id);
     
-    // Spieler Setup
     if (!gameState.players[socket.id]) {
         gameState.players[socket.id] = { hand: drawTiles(7), score: 0 };
         gameState.playerOrder.push(socket.id);
@@ -204,65 +141,62 @@ io.on('connection', (socket) => {
     
     const playerIndex = gameState.playerOrder.indexOf(socket.id);
     
-    // Initiale Daten senden
     socket.emit('player-assignment', { playerIndex });
     socket.emit('update-board', gameState.board);
     socket.emit('update-hand', gameState.players[socket.id].hand);
+    
+    // Sende auch, wer gerade dran ist
+    io.emit('update-turn', gameState.activePlayerIndex);
     io.emit('update-scores', gameState.playerOrder.map(id => ({ id, score: gameState.players[id].score })));
 
-    // Zug empfangen
     socket.on('submit-turn', (moves) => {
-        const player = gameState.players[socket.id];
+        const pIndex = gameState.playerOrder.indexOf(socket.id);
         
-        // 1. Hat Spieler die Steine?
+        // 1. Check: Bin ich dran?
+        if (pIndex !== gameState.activePlayerIndex) {
+            socket.emit('move-error', "Du bist nicht am Zug!");
+            return;
+        }
+
+        const player = gameState.players[socket.id];
         let tempHand = [...player.hand];
         let hasTiles = true;
         for (let move of moves) {
             const idx = tempHand.indexOf(move.letter);
-            if (idx === -1) hasTiles = false;
-            else tempHand.splice(idx, 1);
+            if (idx === -1) hasTiles = false; else tempHand.splice(idx, 1);
         }
-        if (!hasTiles) {
-            socket.emit('move-error', "Buchstaben nicht in der Hand!");
-            return;
-        }
+        if (!hasTiles) { socket.emit('move-error', "Buchstaben fehlen!"); return; }
 
-        // 2. Ist Zug geometrisch gültig?
         const validation = validateMove(moves, gameState.board);
-        if (!validation.valid) {
-            socket.emit('move-error', validation.msg);
-            return;
-        }
+        if (!validation.valid) { socket.emit('move-error', validation.msg); return; }
 
-        // 3. Punkte berechnen & addieren
         const points = calculateMoveScore(moves, gameState.board);
         player.score += points;
 
-        // 4. Zug ausführen
         moves.forEach(move => {
             gameState.board[move.index] = move.letter;
             const handIndex = player.hand.indexOf(move.letter);
             if (handIndex !== -1) player.hand.splice(handIndex, 1);
         });
 
-        // 5. Nachziehen
         const newTiles = drawTiles(moves.length);
         player.hand.push(...newTiles);
+        
         gameState.isFirstMove = false;
 
-        // 6. Alle Updates senden
+        // Nächster Spieler ist dran (Modulo Anzahl der Spieler)
+        gameState.activePlayerIndex = (gameState.activePlayerIndex + 1) % gameState.playerOrder.length;
+
         io.emit('update-board', gameState.board);
         socket.emit('update-hand', player.hand);
         io.emit('update-scores', gameState.playerOrder.map(id => ({ id, score: gameState.players[id].score })));
+        io.emit('update-turn', gameState.activePlayerIndex); // Alle informieren, dass der Nächste dran ist
     });
 
     socket.on('disconnect', () => {
-        // Spieler bleibt im Speicher für Reconnect, in Produktion würde man hier aufräumen
-        console.log("Disconnect", socket.id);
+        // Optional: Wenn aktiver Spieler geht, Spiel pausieren etc.
     });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server läuft auf Port ${PORT}`);
-});
+server.listen(PORT, () => { console.log(`Server läuft auf Port ${PORT}`); });
