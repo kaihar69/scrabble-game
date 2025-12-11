@@ -8,10 +8,10 @@
     <style>
         :root {
             --bg-color: #1a1a1a;
-            --board-border: #4e342e; /* Dunkler Holzrahmen */
-            --grid-gap: #111; /* Die Linien zwischen den Feldern */
-            --field-green: #2e7d32; /* Sattes Filz-Grün */
-            --tile-color: #f3e5ab; /* Elfenbein/Holz */
+            --board-border: #4e342e; 
+            --grid-gap: #111; 
+            --field-green: #2e7d32; 
+            --tile-color: #f3e5ab; 
             --tile-text: #2c3e50;
         }
 
@@ -21,160 +21,137 @@
             font-family: 'Roboto', sans-serif; 
             background: var(--bg-color); 
             color: #ecf0f1; 
-            margin: 0; 
-            padding: 10px;
-            /* Perfekte Zentrierung */
+            margin: 0; padding: 10px;
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            display: flex; flex-direction: column; 
+            justify-content: center; align-items: center;
         }
 
-        /* Container für das Spielbrett (Rahmen) */
+        /* --- Scoreboard --- */
+        #scoreboard {
+            display: flex; justify-content: space-between; align-items: center;
+            width: 100%; max-width: 600px;
+            background: #263238; padding: 10px 20px;
+            border-radius: 8px; margin-bottom: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .player-score { display: flex; flex-direction: column; align-items: center; font-size: 0.9em; opacity: 0.7;}
+        .player-score.active { opacity: 1; color: #fff; }
+        .score-val { font-size: 1.4em; color: #f1c40f; font-weight: bold; }
+        #status { font-size: 0.9em; color: #ffb300; font-weight: bold; text-align: center; }
+
+        /* --- Brett --- */
         #board-wrapper {
             background: var(--board-border);
-            padding: 10px;
+            padding: 8px;
             border-radius: 4px;
             box-shadow: 0 15px 40px rgba(0,0,0,0.6);
-            /* Maximale Breite, aber passt sich an */
-            width: 100%;
-            max-width: 600px; 
-            /* Erhält das Quadrat-Format */
+            width: 100%; max-width: 600px; 
             aspect-ratio: 1 / 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            display: flex; justify-content: center; align-items: center;
         }
 
-        /* Das eigentliche Gitter */
         #game-board { 
             display: grid; 
-            /* Exakt 15 Spalten */
             grid-template-columns: repeat(15, 1fr); 
             grid-template-rows: repeat(15, 1fr);
-            gap: 2px; /* Die gleichmäßigen Linien */
+            gap: 2px; 
             background: var(--grid-gap); 
-            width: 100%;
-            height: 100%;
+            width: 100%; height: 100%;
             border: 2px solid var(--grid-gap);
         }
 
         .cell { 
             background: var(--field-green); 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            position: relative;
-            cursor: pointer; 
-            user-select: none;
-            overflow: hidden; /* Damit nichts übersteht */
+            display: flex; align-items: center; justify-content: center; 
+            position: relative; cursor: pointer; user-select: none;
+            overflow: hidden;
         }
         
-        /* Labels auf dem Brett (3W, 2B etc.) */
         .cell-label {
             font-size: clamp(6px, 1.5vw, 10px);
-            font-weight: bold;
-            opacity: 0.7;
-            text-align: center;
+            font-weight: bold; opacity: 0.7; text-align: center;
         }
 
-        /* Spezialfelder Farben */
-        .tw { background-color: #b71c1c; .cell-label { color: #fff; } } /* 3W Rot */
-        .dw { background-color: #f57f17; .cell-label { color: #fff; } } /* 2W Orange */
-        .tl { background-color: #0d47a1; .cell-label { color: #fff; } } /* 3B Dunkelblau */
-        .dl { background-color: #0288d1; .cell-label { color: #fff; } } /* 2B Hellblau */
+        /* Spezialfelder */
+        .tw { background-color: #b71c1c; .cell-label { color: #fff; } } 
+        .dw { background-color: #f57f17; .cell-label { color: #fff; } } 
+        .tl { background-color: #0d47a1; .cell-label { color: #fff; } } 
+        .dl { background-color: #0288d1; .cell-label { color: #fff; } } 
         .center { background-color: #f57f17; display: flex; align-items: center; justify-content: center; }
         .star { font-size: 20px; color: #fff; }
 
-        /* --- Der Spielstein --- */
+        /* --- Spielstein --- */
         .tile-look {
             background: linear-gradient(135deg, #fff8e1 0%, #f3e5ab 100%);
             color: var(--tile-text);
-            width: 95%; height: 95%;
+            width: 94%; height: 94%;
             border-radius: 3px;
             box-shadow: 1px 1px 2px rgba(0,0,0,0.4);
-            display: flex; 
-            justify-content: center; 
-            align-items: center;
-            position: relative;
-            z-index: 10;
+            display: flex; justify-content: center; align-items: center;
+            position: relative; z-index: 10;
         }
         
         .tile-letter {
             font-size: clamp(10px, 3.5vw, 22px);
             font-weight: 900;
-            transform: translateY(-5%); /* Leicht nach oben für Platz für Zahl */
+            transform: translateY(-5%);
         }
 
         .tile-score {
-            position: absolute;
-            bottom: 2px;
-            right: 3px;
+            position: absolute; bottom: 2px; right: 3px;
             font-size: clamp(5px, 1.2vw, 9px);
-            font-weight: 500;
-            color: #555;
+            font-weight: 500; color: #555;
         }
         
-        .preview .tile-look {
-            opacity: 0.7; /* Vorschau leicht transparent */
-            box-shadow: none;
-        }
+        .preview .tile-look { opacity: 0.7; box-shadow: none; }
 
-        /* --- UI Controls unten --- */
+        /* --- UI Controls --- */
         #ui-container {
-            width: 100%;
-            max-width: 600px;
-            margin-top: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
+            width: 100%; max-width: 600px; margin-top: 20px;
+            display: flex; flex-direction: column; gap: 10px;
         }
 
         #rack { 
-            background: #263238; 
-            padding: 10px; 
-            border-radius: 8px; 
-            display: flex; 
-            justify-content: center; 
-            gap: 5px;
-            min-height: 50px;
-            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+            background: #263238; padding: 10px; border-radius: 8px; 
+            display: flex; justify-content: center; gap: 5px;
+            min-height: 50px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
         }
         
         .hand-slot {
-            width: clamp(30px, 13vw, 45px);
-            height: clamp(30px, 13vw, 45px);
+            width: clamp(30px, 13vw, 45px); height: clamp(30px, 13vw, 45px);
             display: flex; align-items: center; justify-content: center;
-            cursor: pointer;
-            transition: transform 0.1s;
+            cursor: pointer; transition: transform 0.1s;
         }
-        
         .hand-slot.selected { transform: translateY(-10px); }
 
         #controls { display: flex; justify-content: space-between; gap: 10px; }
         
         button { 
-            flex: 1;
-            padding: 15px; 
-            font-size: 16px; 
+            flex: 1; padding: 15px; font-size: 16px; 
             border: none; border-radius: 4px; 
             font-weight: bold; text-transform: uppercase; letter-spacing: 1px;
             cursor: pointer;
         }
         .btn-submit { background-color: #388e3c; color: white; box-shadow: 0 4px 0 #1b5e20; }
         .btn-submit:active { transform: translateY(4px); box-shadow: none; }
-        
         .btn-reset { background-color: #d32f2f; color: white; box-shadow: 0 4px 0 #8c1b1b; }
         .btn-reset:active { transform: translateY(4px); box-shadow: none; }
-
-        #status { text-align: center; color: #ffb300; font-weight: bold; height: 20px; margin-bottom: 5px;}
-
     </style>
 </head>
 <body>
     
-    <div id="status">Verbinde...</div>
+    <div id="scoreboard">
+        <div class="player-score" id="p1-score">
+            <span>Spieler 1</span>
+            <span class="score-val" id="score-0">0</span>
+        </div>
+        <div id="status">Verbinde...</div>
+        <div class="player-score" id="p2-score">
+            <span>Spieler 2</span>
+            <span class="score-val" id="score-1">0</span>
+        </div>
+    </div>
 
     <div id="board-wrapper">
         <div id="game-board"></div>
@@ -200,45 +177,30 @@
         let currentBoard = Array(225).fill(null);
         let currentTurnMoves = []; 
 
-        // Punktewerte für die Anzeige (Deutsch)
         const LETTER_SCORES = {
             "A": 1, "B": 3, "C": 4, "D": 1, "E": 1, "F": 4, "G": 2, "H": 2, 
             "I": 1, "J": 6, "K": 4, "L": 2, "M": 3, "N": 1, "O": 2, "P": 4, 
             "Q": 10, "R": 1, "S": 1, "T": 1, "U": 1, "V": 6, "W": 3, "X": 8, 
-            "Y": 10, "Z": 3, "?": 0
+            "Y": 10, "Z": 3
         };
 
         function getCellType(x, y) {
             const k = x + "," + y;
             if (k === "7,7") return "center";
-            // Triple Word (3W) - Ecken und Mitten der Ränder
             if ((x===0||x===7||x===14) && (y===0||y===7||y===14) && k!=="7,7") return "tw"; 
-            // Double Word (2W) - Diagonalen
-            if (x===y || x+y===14) {
-                 if(x>=1 && x<=4) return "dw"; 
-                 if(x>=10 && x<=13) return "dw"; 
-            }
-            // Triple Letter (3B)
+            if (x===y || x+y===14) { if(x>=1 && x<=4) return "dw"; if(x>=10 && x<=13) return "dw"; }
             if ((x===5||x===9) && (y===1||y===5||y===9||y===13)) return "tl";
             if ((y===5||y===9) && (x===1||x===5||x===9||x===13)) return "tl";
-            // Double Letter (2B)
             if ((x===3||x===11) && (y===0||y===7||y===14)) return "dl";
             if ((y===3||y===11) && (x===0||x===7||x===14)) return "dl";
             if ((x===2||x===6||x===8||x===12) && (y===6||y===8)) return "dl";
             if ((y===2||y===6||y===8||y===12) && (x===6||x===8)) return "dl";
-            
             return "";
         }
 
-        // --- HTML Generator für einen Spielstein ---
         function createTileHTML(letter) {
             const score = LETTER_SCORES[letter] !== undefined ? LETTER_SCORES[letter] : 0;
-            return `
-                <div class="tile-look">
-                    <span class="tile-letter">${letter}</span>
-                    <span class="tile-score">${score}</span>
-                </div>
-            `;
+            return `<div class="tile-look"><span class="tile-letter">${letter}</span><span class="tile-score">${score}</span></div>`;
         }
 
         // Brett initialisieren
@@ -250,18 +212,12 @@
             
             if(type) cell.classList.add(type);
             
-            // Labels rendern (wenn kein Stein drauf ist)
             let labelText = "";
-            if(type === 'tw') labelText = "3W";
-            else if(type === 'dw') labelText = "2W";
-            else if(type === 'tl') labelText = "3B";
-            else if(type === 'dl') labelText = "2B";
+            if(type === 'tw') labelText = "3W"; else if(type === 'dw') labelText = "2W";
+            else if(type === 'tl') labelText = "3B"; else if(type === 'dl') labelText = "2B";
             
-            if (type === 'center') {
-                cell.innerHTML = '<span class="star">★</span>';
-            } else if (labelText) {
-                cell.innerHTML = `<span class="cell-label">${labelText}</span>`;
-            }
+            if (type === 'center') cell.innerHTML = '<span class="star">★</span>';
+            else if (labelText) cell.innerHTML = `<span class="cell-label">${labelText}</span>`;
 
             cell.dataset.index = i;
             
@@ -270,10 +226,8 @@
                 const isOccupiedLocal = currentTurnMoves.find(m => m.index === i);
 
                 if (!isOccupiedServer && !isOccupiedLocal && selectedTile) {
-                    // Inhalt überschreiben
                     cell.innerHTML = createTileHTML(selectedTile.letter);
                     cell.classList.add('preview');
-                    
                     currentTurnMoves.push({ index: i, letter: selectedTile.letter });
                     myHand.splice(selectedTile.handIndex, 1);
                     selectedTile = null;
@@ -289,7 +243,6 @@
                 const slot = document.createElement('div');
                 slot.classList.add('hand-slot');
                 slot.innerHTML = createTileHTML(letter);
-                
                 slot.addEventListener('click', () => {
                     document.querySelectorAll('.hand-slot').forEach(t => t.classList.remove('selected'));
                     slot.classList.add('selected');
@@ -316,21 +269,15 @@
             cells.forEach((cell, i) => {
                 const x = i % 15; const y = Math.floor(i / 15);
                 const type = getCellType(x, y);
-                
-                // Grundzustand wiederherstellen
                 cell.className = 'cell'; 
                 if(type) cell.classList.add(type);
 
                 if (currentBoard[i]) {
-                    // Fester Stein
                     cell.innerHTML = createTileHTML(currentBoard[i]);
                 } else {
-                    // Label wiederherstellen
                     let labelText = "";
-                    if(type === 'tw') labelText = "3W";
-                    else if(type === 'dw') labelText = "2W";
-                    else if(type === 'tl') labelText = "3B";
-                    else if(type === 'dl') labelText = "2B";
+                    if(type === 'tw') labelText = "3W"; else if(type === 'dw') labelText = "2W";
+                    else if(type === 'tl') labelText = "3B"; else if(type === 'dl') labelText = "2B";
                     
                     if (type === 'center') cell.innerHTML = '<span class="star">★</span>';
                     else if (labelText) cell.innerHTML = `<span class="cell-label">${labelText}</span>`;
@@ -339,20 +286,32 @@
             });
         }
 
-        // --- Socket ---
-        socket.on('player-assignment', (data) => statusElement.innerText = `Spieler ${data.playerIndex + 1}`);
+        // --- Socket Events ---
+        socket.on('player-assignment', (data) => {
+            const p1 = document.getElementById('p1-score');
+            const p2 = document.getElementById('p2-score');
+            if(data.playerIndex === 0) { p1.classList.add('active'); p1.style.borderBottom = "2px solid #f1c40f"; }
+            if(data.playerIndex === 1) { p2.classList.add('active'); p2.style.borderBottom = "2px solid #f1c40f"; }
+            statusElement.innerText = `Du bist Spieler ${data.playerIndex + 1}`;
+        });
+
         socket.on('update-hand', (newHand) => { myHand = newHand; renderHand(); });
+        socket.on('update-board', (boardData) => { currentBoard = boardData; currentTurnMoves = []; updateBoardView(); });
+        
+        socket.on('update-scores', (playersData) => {
+            const score0 = document.getElementById('score-0');
+            const score1 = document.getElementById('score-1');
+            // Einfache Zuordnung basierend auf Reihenfolge (0 = Spieler 1, 1 = Spieler 2)
+            if(playersData[0]) score0.innerText = playersData[0].score;
+            if(playersData[1]) score1.innerText = playersData[1].score;
+        });
+
         socket.on('move-error', (msg) => {
             const oldT = statusElement.innerText;
             statusElement.innerText = msg;
             statusElement.style.color = "#ff5252";
             setTimeout(() => { statusElement.innerText = oldT; statusElement.style.color = "#ffb300"; }, 3000);
             resetTurn(); 
-        });
-        socket.on('update-board', (boardData) => {
-            currentBoard = boardData;
-            currentTurnMoves = [];
-            updateBoardView();
         });
     </script>
 </body>
