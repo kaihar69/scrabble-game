@@ -40,9 +40,17 @@
         }
         #login-box h2 { font-family: 'Cinzel', serif; margin: 0 0 10px 0; color: var(--wood-dark); }
         .inp { padding: 12px; font-size: 1.1rem; border: 2px solid var(--wood-light); border-radius: 5px; text-align: center; font-weight: bold; }
+        
+        .login-buttons { display: flex; gap: 10px; }
+        
         #btn-start {
-            padding: 15px; font-size: 1.2rem; font-weight: bold;
+            flex: 2; padding: 15px; font-size: 1.1rem; font-weight: bold;
             background: linear-gradient(to bottom, #27ae60, #219150);
+            color: white; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase;
+        }
+        #btn-training {
+            flex: 1; padding: 15px; font-size: 0.9rem; font-weight: bold;
+            background: linear-gradient(to bottom, #2980b9, #2471a3);
             color: white; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase;
         }
 
@@ -54,8 +62,8 @@
             border-bottom: 3px solid var(--ui-gold);
             border-radius: 0 0 15px 15px; padding: 0 10px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3); color: #ecf0f1;
-            flex-shrink: 0;
-            position: relative;
+            flex-shrink: 0; position: relative;
+            z-index: 50; 
         }
         .player-badge {
             display: flex; flex-direction: column; align-items: center;
@@ -65,26 +73,40 @@
         .p-name { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 1px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .p-score { font-size: 1.2em; font-weight: 900; font-family: 'Cinzel', serif;}
         
-        /* Bot Button oben im Header versteckt */
         #btn-add-bot {
             position: absolute; right: 10px; bottom: 5px;
             padding: 2px 6px; font-size: 0.6rem; background: #34495e; color: #7f8c8d; border: 1px solid #555; border-radius: 4px; cursor: pointer;
-            display: none; /* Wird per JS angezeigt wenn Platz ist */
+            display: none; 
         }
         #btn-add-bot:hover { color: white; border-color: white; }
 
-        /* WICHTIG: Das hier versteckt den Text-Container komplett */
-        #game-info {
-            display: none !important;
+        /* NEU: Der Regeln-Button */
+        #btn-rules {
+            position: absolute; left: 10px; top: 10px;
+            width: 24px; height: 24px; 
+            background: rgba(255,255,255,0.1); 
+            color: #ccc; 
+            border: 1px solid #777; 
+            border-radius: 50%; 
+            cursor: pointer;
+            font-size: 14px; font-weight: bold; font-family: 'Cinzel', serif;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
         }
+        #btn-rules:hover { background: var(--ui-gold); color: var(--ui-dark); border-color: var(--ui-gold); }
+
+        #game-info { display: none !important; }
 
         /* --- BOARD --- */
-        #board-wrapper { flex-grow: 1; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 5px; }
+        #board-wrapper { 
+            flex-grow: 1; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 5px;
+            margin-top: 20px; 
+        }
+        
         #game-board { 
             display: grid; grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr);
             gap: 2px; background: var(--grid-gap); border: 5px solid var(--board-border); border-radius: 4px;
-            /* Größe leicht angepasst da Text weg ist */
-            width: min(96vw, calc(100dvh - 220px)); height: min(96vw, calc(100dvh - 220px));
+            width: min(96vw, calc(100dvh - 240px)); height: min(96vw, calc(100dvh - 240px));
             aspect-ratio: 1 / 1; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
         .cell { background: var(--field-green); display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; user-select: none; }
@@ -140,27 +162,82 @@
             background: rgba(0,0,0,0.8); color: white; padding: 10px 20px;
             border-radius: 20px; font-weight: bold; pointer-events: none; opacity: 0; transition: opacity 0.5s; z-index: 99;
         }
+
+        /* --- NEU: RULES OVERLAY --- */
+        #rules-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(3px);
+            z-index: 2000; display: none; justify-content: center; align-items: center;
+        }
+        #rules-box {
+            background: var(--bg-color); padding: 25px; border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7); border: 3px solid var(--ui-gold);
+            width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto;
+            color: var(--ui-dark); position: relative;
+        }
+        #rules-box h2 { font-family: 'Cinzel', serif; margin-top: 0; color: var(--wood-dark); border-bottom: 2px solid var(--wood-light); padding-bottom: 10px;}
+        #rules-box h3 { margin: 15px 0 5px 0; color: var(--wood-dark); font-size: 1rem;}
+        #rules-box ul { padding-left: 20px; margin: 0; }
+        #rules-box li { margin-bottom: 5px; font-size: 0.9rem; }
+        #btn-close-rules {
+            position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--wood-dark); box-shadow: none;
+        }
     </style>
 </head>
 <body>
 
+    <div id="rules-overlay">
+        <div id="rules-box">
+            <button id="btn-close-rules" onclick="toggleRules()">×</button>
+            <h2>Spielregeln</h2>
+            
+            <h3>Ziel des Spiels</h3>
+            <p style="font-size:0.9rem">Sammle die meisten Punkte durch das Legen von Wörtern. Nutze die Bonusfelder!</p>
+
+            <h3>So wird gelegt</h3>
+            <ul>
+                <li><strong>Erster Zug:</strong> Muss über den Stern (Mitte) gehen.</li>
+                <li><strong>Weitere Züge:</strong> Müssen an bestehende Wörter andocken.</li>
+                <li>Alle Steine müssen in <strong>einer Linie</strong> liegen (waagerecht oder senkrecht).</li>
+            </ul>
+
+            <h3>Spezialfelder</h3>
+            <ul>
+                <li><strong style="color:#b71c1c">3W</strong>: Dreifacher Wortwert</li>
+                <li><strong style="color:#f57f17">2W</strong>: Doppelter Wortwert (Startfeld)</li>
+                <li><strong style="color:#0d47a1">3B</strong>: Dreifacher Buchstabenwert</li>
+                <li><strong style="color:#0288d1">2B</strong>: Doppelter Buchstabenwert</li>
+            </ul>
+
+            <h3>Aktionen</h3>
+            <ul>
+                <li><strong>LEGEN:</strong> Platziere dein Wort und bestätige.</li>
+                <li><strong>TAUSCH:</strong> Wähle Buchstaben ab, die du nicht willst. Dies kostet dich deinen Zug!</li>
+                <li><strong>PASS:</strong> Gib den Zug an den nächsten Spieler weiter.</li>
+                <li><strong>RESET:</strong> Holt alle noch nicht bestätigten Steine zurück auf die Bank.</li>
+            </ul>
+            <p style="font-size:0.8rem; margin-top:15px; color:#555;">Tipp: Klicke im Bänkchen auf zwei Buchstaben, um sie zu tauschen (Sortieren).</p>
+        </div>
+    </div>
+
     <div id="login-screen">
         <div id="login-box">
             <h2>Scrabble Chef</h2>
-            <input type="text" id="inp-room" class="inp" placeholder="Raum Name (z.B. LOBBY)" value="LOBBY">
+            <input type="text" id="inp-room" class="inp" placeholder="Raum (z.B. LOBBY)" value="LOBBY">
             <input type="text" id="inp-name" class="inp" placeholder="Dein Name" maxlength="10">
-            <button id="btn-start">Beitreten</button>
+            <div class="login-buttons">
+                <button id="btn-start">Beitreten</button>
+                <button id="btn-training">Training (2P)</button>
+            </div>
         </div>
     </div>
     
     <div id="scoreboard">
+        <button id="btn-rules" onclick="toggleRules()">?</button>
         <button id="btn-add-bot" onclick="addBot()">+ BOT</button>
     </div>
 
-    <div id="game-info">
-        <span id="info-text"></span>
-    </div>
-
+    <div id="game-info"></div>
     <div id="msg-overlay"></div>
 
     <div id="board-wrapper">
@@ -181,12 +258,12 @@
     <script>
         const socket = io();
         const scoreboard = document.getElementById('scoreboard');
-        const infoText = document.getElementById('info-text');
         const btnAddBot = document.getElementById('btn-add-bot');
         const msgOverlay = document.getElementById('msg-overlay');
         const rackElement = document.getElementById('rack');
         const boardElement = document.getElementById('game-board');
         const btnSubmit = document.getElementById('btn-submit');
+        const rulesOverlay = document.getElementById('rules-overlay');
         
         let myHand = []; 
         let currentBoard = Array(225).fill(null);
@@ -211,16 +288,18 @@
             }
         });
 
-        function addBot() {
-            socket.emit('add-bot');
+        document.getElementById('btn-training').addEventListener('click', () => {
+            socket.emit('join-training');
+            document.getElementById('login-screen').style.display = 'none';
+        });
+
+        function toggleRules() {
+            const isVisible = rulesOverlay.style.display === 'flex';
+            rulesOverlay.style.display = isVisible ? 'none' : 'flex';
         }
 
-        function showMsg(text) {
-            msgOverlay.innerText = text;
-            msgOverlay.style.opacity = 1;
-            setTimeout(() => msgOverlay.style.opacity = 0, 3000);
-        }
-
+        function addBot() { socket.emit('add-bot'); }
+        function showMsg(text) { msgOverlay.innerText = text; msgOverlay.style.opacity = 1; setTimeout(() => msgOverlay.style.opacity = 0, 3000); }
         function createTileHTML(letter) {
             const score = LETTER_SCORES[letter] || 0;
             return `<div class="tile-look"><span class="tile-letter">${letter}</span><span class="tile-score">${score}</span></div>`;
@@ -241,8 +320,6 @@
         }
 
         function updateUI() {
-            // Alte Badges löschen, aber Bot-Button behalten
-            // Wir bauen das HTML neu auf, aber hängen den Button wieder an
             const badges = [];
             players.forEach((p, idx) => {
                 const isActive = idx === activePlayerIndex;
@@ -253,21 +330,22 @@
                 badges.push(badge);
             });
             
+            // Scoreboard leeren, aber Buttons erhalten
+            const btnRules = document.getElementById('btn-rules'); // Merken
+            const btnBot = document.getElementById('btn-add-bot'); // Merken
+            
             scoreboard.innerHTML = '';
-            badges.forEach(b => scoreboard.appendChild(b));
-            scoreboard.appendChild(btnAddBot); // Button wieder anhängen
+            scoreboard.appendChild(btnRules); // Zuerst ? Button
+            badges.forEach(b => scoreboard.appendChild(b)); // Dann Spieler
+            scoreboard.appendChild(btnBot); // Dann Bot Button
 
             isMyTurn = (players[activePlayerIndex]?.id === myId);
             
-            // Text setzen wir, aber er ist via CSS unsichtbar
-            infoText.innerText = isMyTurn ? "DU BIST AM ZUG" : `WARTE AUF ${players[activePlayerIndex]?.name || 'Spieler'}...`;
-            
-            if (players.length < 4) btnAddBot.style.display = 'block';
-            else btnAddBot.style.display = 'none';
+            if (players.length < 4 && !players[0].name.includes("ICH")) btnBot.style.display = 'block';
+            else btnBot.style.display = 'none';
 
             const btns = document.querySelectorAll('#controls button');
             btns.forEach(b => b.disabled = !isMyTurn);
-            
             btnSubmit.innerText = isSwapMode ? "BESTÄTIGEN" : "LEGEN";
             
             renderBoard();
@@ -279,25 +357,14 @@
             for (let i = 0; i < 225; i++) {
                 const cell = document.createElement('div');
                 cell.className = 'cell ' + getCellType(i);
-                
                 if(!currentBoard[i]) {
-                    const type = getCellType(i);
-                    let txt = "";
-                    if(type==='tw') txt="3W"; if(type==='dw') txt="2W";
-                    if(type==='tl') txt="3B"; if(type==='dl') txt="2B";
-                    if(type==='center') cell.innerHTML = '<span class="star">★</span>';
-                    else if(txt) cell.innerHTML = `<span class="cell-label">${txt}</span>`;
+                    const type = getCellType(i); let txt = "";
+                    if(type==='tw') txt="3W"; if(type==='dw') txt="2W"; if(type==='tl') txt="3B"; if(type==='dl') txt="2B";
+                    if(type==='center') cell.innerHTML = '<span class="star">★</span>'; else if(txt) cell.innerHTML = `<span class="cell-label">${txt}</span>`;
                 }
-
                 const localMove = currentTurnMoves.find(m => m.index === i);
-                
-                if (currentBoard[i]) {
-                    cell.innerHTML = createTileHTML(currentBoard[i]);
-                } else if (localMove) {
-                    cell.innerHTML = createTileHTML(localMove.letter);
-                    cell.classList.add('preview');
-                }
-
+                if (currentBoard[i]) { cell.innerHTML = createTileHTML(currentBoard[i]); } 
+                else if (localMove) { cell.innerHTML = createTileHTML(localMove.letter); cell.classList.add('preview'); }
                 cell.onclick = () => handleBoardClick(i);
                 boardElement.appendChild(cell);
             }
@@ -308,18 +375,11 @@
             myHand.forEach((letter, idx) => {
                 const slot = document.createElement('div');
                 slot.className = 'hand-slot';
-                
                 const isPlaced = currentTurnMoves.some(m => m.letter === letter && m.handIndex === idx);
-                
-                if (isSwapMode) {
-                    if (swapSelectedLetters.includes(idx)) slot.classList.add('swap-selected');
-                } else {
-                    if (selectedTile && selectedTile.handIndex === idx) slot.classList.add('selected');
-                }
-
+                if (isSwapMode) { if (swapSelectedLetters.includes(idx)) slot.classList.add('swap-selected'); } 
+                else { if (selectedTile && selectedTile.handIndex === idx) slot.classList.add('selected'); }
                 if (!isPlaced) { 
-                    slot.innerHTML = createTileHTML(letter);
-                    slot.onclick = () => handleHandClick(letter, idx);
+                    slot.innerHTML = createTileHTML(letter); slot.onclick = () => handleHandClick(letter, idx);
                 }
                 rackElement.appendChild(slot);
             });
@@ -328,80 +388,45 @@
         function handleHandClick(letter, idx) {
             if (isSwapMode) {
                 if(!isMyTurn) return; 
-                if (swapSelectedLetters.includes(idx)) {
-                    swapSelectedLetters = swapSelectedLetters.filter(i => i !== idx);
-                } else {
-                    swapSelectedLetters.push(idx);
-                }
-                renderHand();
-                return;
+                if (swapSelectedLetters.includes(idx)) swapSelectedLetters = swapSelectedLetters.filter(i => i !== idx); else swapSelectedLetters.push(idx);
+                renderHand(); return;
             }
-
             if (selectedTile) {
                 if (selectedTile.handIndex !== idx) {
-                    const temp = myHand[selectedTile.handIndex];
-                    myHand[selectedTile.handIndex] = myHand[idx];
-                    myHand[idx] = temp;
-                    selectedTile = null; 
-                    renderHand();
-                    return; 
-                } else {
-                    selectedTile = null;
-                }
-            } else {
-                selectedTile = { letter, handIndex: idx };
-            }
+                    const temp = myHand[selectedTile.handIndex]; myHand[selectedTile.handIndex] = myHand[idx]; myHand[idx] = temp;
+                    selectedTile = null; renderHand(); return; 
+                } else selectedTile = null;
+            } else selectedTile = { letter, handIndex: idx };
             renderHand();
         }
 
         function handleBoardClick(index) {
             if (!isMyTurn || isSwapMode) return;
             const existingMoveIdx = currentTurnMoves.findIndex(m => m.index === index);
-            if (existingMoveIdx !== -1) {
-                currentTurnMoves.splice(existingMoveIdx, 1);
-                selectedTile = null;
-                renderBoard();
-                renderHand();
-                return;
-            }
+            if (existingMoveIdx !== -1) { currentTurnMoves.splice(existingMoveIdx, 1); selectedTile = null; renderBoard(); renderHand(); return; }
             if (selectedTile && !currentBoard[index]) {
                 currentTurnMoves.push({ index: index, letter: selectedTile.letter, handIndex: selectedTile.handIndex });
-                selectedTile = null;
-                renderBoard();
-                renderHand();
+                selectedTile = null; renderBoard(); renderHand();
             }
         }
 
         function toggleSwapMode() {
             if (currentTurnMoves.length > 0) resetTurn(); 
-            isSwapMode = !isSwapMode;
-            swapSelectedLetters = [];
-            document.body.classList.toggle('swapping', isSwapMode);
-            updateUI();
+            isSwapMode = !isSwapMode; swapSelectedLetters = [];
+            document.body.classList.toggle('swapping', isSwapMode); updateUI();
         }
 
         function resetTurn() {
-            currentTurnMoves = [];
-            selectedTile = null;
-            swapSelectedLetters = [];
-            isSwapMode = false;
-            document.body.classList.remove('swapping');
-            updateUI();
+            currentTurnMoves = []; selectedTile = null; swapSelectedLetters = [];
+            isSwapMode = false; document.body.classList.remove('swapping'); updateUI();
         }
 
-        function actionPass() {
-            if(confirm("Passen?")) {
-                resetTurn();
-                socket.emit('action-pass');
-            }
-        }
+        function actionPass() { if(confirm("Passen?")) { resetTurn(); socket.emit('action-pass'); } }
 
         function submitAction() {
             if (isSwapMode) {
                 if (swapSelectedLetters.length === 0) return;
-                const letters = swapSelectedLetters.map(idx => myHand[idx]);
-                socket.emit('action-swap', letters);
-                resetTurn();
+                const letters = swapSelectedLetters.map(idx => myHand[idx]); socket.emit('action-swap', letters); resetTurn();
             } else {
                 if (currentTurnMoves.length === 0) return;
                 const movesToSend = currentTurnMoves.map(m => ({ index: m.index, letter: m.letter }));
@@ -410,26 +435,11 @@
         }
 
         socket.on('update-game-state', (state) => {
-            currentBoard = state.board;
-            players = state.players;
-            activePlayerIndex = state.activePlayerIndex;
-            myId = socket.id;
-            currentTurnMoves = []; 
-            isSwapMode = false;
-            document.body.classList.remove('swapping');
-            updateUI();
+            currentBoard = state.board; players = state.players; activePlayerIndex = state.activePlayerIndex; myId = socket.id;
+            currentTurnMoves = []; isSwapMode = false; document.body.classList.remove('swapping'); updateUI();
         });
-
-        socket.on('update-hand', (hand) => {
-            myHand = hand;
-            renderHand();
-        });
-
-        socket.on('error-msg', (msg) => {
-            showMsg("⚠️ " + msg);
-            if(!isSwapMode) resetTurn();
-        });
-
+        socket.on('update-hand', (hand) => { myHand = hand; renderHand(); });
+        socket.on('error-msg', (msg) => { showMsg("⚠️ " + msg); if(!isSwapMode) resetTurn(); });
         socket.on('game-msg', (text) => showMsg(text));
     </script>
 </body>
