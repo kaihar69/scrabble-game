@@ -7,7 +7,7 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// --- Konfiguration ---
+// --- Setup ---
 const LETTER_SCORES = {
     "A": 1, "B": 3, "C": 4, "D": 1, "E": 1, "F": 4, "G": 2, "H": 2, 
     "I": 1, "J": 6, "K": 4, "L": 2, "M": 3, "N": 1, "O": 2, "P": 4, 
@@ -26,7 +26,6 @@ const distribution = [
 ];
 distribution.forEach(item => { for(let i=0; i<item.c; i++) INITIAL_BAG.push(item.l); });
 
-// --- Hilfsfunktionen ---
 function shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -49,14 +48,14 @@ function getMultipliers(index) {
     return { wm: 1, lm: 1 };
 }
 
-// --- Spielstatus ---
+// --- Status ---
 let gameState = {
     board: Array(15 * 15).fill(null),
-    players: {}, 
-    playerOrder: [],
     tileBag: shuffle([...INITIAL_BAG]),
     isFirstMove: true,
-    activePlayerIndex: 0 // NEU: Wer ist dran? (0 = Spieler 1)
+    activePlayerIndex: 0, 
+    // Players Array speichert jetzt Objekte mit Namen
+    players: [null, null] 
 };
 
 function drawTiles(count) {
@@ -132,33 +131,59 @@ function validateMove(moves, board) {
 }
 
 io.on('connection', (socket) => {
-    console.log('Verbindung:', socket.id);
+    console.log('Neue Verbindung (noch ohne Name):', socket.id);
     
-    if (!gameState.players[socket.id]) {
-        gameState.players[socket.id] = { hand: drawTiles(7), score: 0 };
-        gameState.playerOrder.push(socket.id);
-    }
-    
-    const playerIndex = gameState.playerOrder.indexOf(socket.id);
-    
-    socket.emit('player-assignment', { playerIndex });
+    // Wir senden das aktuelle Board auch an Leute, die sich noch nicht eingeloggt haben (für den Hintergrund)
     socket.emit('update-board', gameState.board);
-    socket.emit('update-hand', gameState.players[socket.id].hand);
-    
-    // Sende auch, wer gerade dran ist
-    io.emit('update-turn', gameState.activePlayerIndex);
-    io.emit('update-scores', gameState.playerOrder.map(id => ({ id, score: gameState.players[id].score })));
 
-    socket.on('submit-turn', (moves) => {
-        const pIndex = gameState.playerOrder.indexOf(socket.id);
-        
-        // 1. Check: Bin ich dran?
-        if (pIndex !== gameState.activePlayerIndex) {
-            socket.emit('move-error', "Du bist nicht am Zug!");
+    // Erst wenn der Spieler seinen Namen sendet, darf er mitspielen
+    socket.on('join-game', (playerName) => {
+        // Freien Platz suchen
+        let myIndex = -1;
+        if (gameState.players[0] === null) myIndex = 0;
+        else if (gameState.players[1] === null) myIndex = 1;
+
+        if (myIndex === -1) {
+            socket.emit('game-full', true);
+            // Namen trotzdem senden, damit er sieht wer spielt
+            const names = gameState.players.map(p => p ? p.name : "Warte auf Spieler...");
+            socket.emit('update-names', names);
             return;
         }
 
-        const player = gameState.players[socket.id];
+        // Spieler registrieren
+        gameState.players[myIndex] = {
+            id: socket.id,
+            name: playerName || `Spieler ${myIndex + 1}`, // Fallback Name
+            hand: drawTiles(7),
+            score: 0
+        };
+
+        // Daten senden
+        socket.emit('player-assignment', { playerIndex: myIndex });
+        socket.emit('update-hand', gameState.players[myIndex].hand);
+        
+        // Allen sagen, wer spielt und wie es steht
+        const currentScores = gameState.players.map(p => p ? { score: p.score } : { score: 0 });
+        const currentNames = gameState.players.map(p => p ? p.name : "Warte auf Spieler...");
+        
+        io.emit('update-scores', currentScores);
+        io.emit('update-names', currentNames); // NEU: Namen verteilen
+        io.emit('update-turn', gameState.activePlayerIndex);
+    });
+
+    socket.on('submit-turn', (moves) => {
+        // Welcher Index gehört zu diesem Socket?
+        let myIndex = -1;
+        if (gameState.players[0] && gameState.players[0].id === socket.id) myIndex = 0;
+        else if (gameState.players[1] && gameState.players[1].id === socket.id) myIndex = 1;
+
+        if (myIndex === -1) return; // Nicht eingeloggt
+        if (gameState.activePlayerIndex !== myIndex) return; // Nicht dran
+
+        const player = gameState.players[myIndex];
+
+        // Cheat Check
         let tempHand = [...player.hand];
         let hasTiles = true;
         for (let move of moves) {
@@ -170,6 +195,7 @@ io.on('connection', (socket) => {
         const validation = validateMove(moves, gameState.board);
         if (!validation.valid) { socket.emit('move-error', validation.msg); return; }
 
+        // Ausführen
         const points = calculateMoveScore(moves, gameState.board);
         player.score += points;
 
@@ -181,20 +207,33 @@ io.on('connection', (socket) => {
 
         const newTiles = drawTiles(moves.length);
         player.hand.push(...newTiles);
-        
         gameState.isFirstMove = false;
 
-        // Nächster Spieler ist dran (Modulo Anzahl der Spieler)
-        gameState.activePlayerIndex = (gameState.activePlayerIndex + 1) % gameState.playerOrder.length;
+        // Zug wechseln
+        gameState.activePlayerIndex = (gameState.activePlayerIndex === 0) ? 1 : 0;
 
+        // Updates
         io.emit('update-board', gameState.board);
         socket.emit('update-hand', player.hand);
-        io.emit('update-scores', gameState.playerOrder.map(id => ({ id, score: gameState.players[id].score })));
-        io.emit('update-turn', gameState.activePlayerIndex); // Alle informieren, dass der Nächste dran ist
+        
+        const currentScores = gameState.players.map(p => p ? { score: p.score } : { score: 0 });
+        io.emit('update-scores', currentScores);
+        io.emit('update-turn', gameState.activePlayerIndex);
     });
 
     socket.on('disconnect', () => {
-        // Optional: Wenn aktiver Spieler geht, Spiel pausieren etc.
+        // Finden wer gegangen ist
+        let leaverIndex = -1;
+        if (gameState.players[0] && gameState.players[0].id === socket.id) leaverIndex = 0;
+        else if (gameState.players[1] && gameState.players[1].id === socket.id) leaverIndex = 1;
+
+        if (leaverIndex !== -1) {
+            console.log(`${gameState.players[leaverIndex].name} hat verlassen.`);
+            gameState.players[leaverIndex] = null;
+            // Namen updaten
+            const currentNames = gameState.players.map(p => p ? p.name : "Warte auf Spieler...");
+            io.emit('update-names', currentNames);
+        }
     });
 });
 
