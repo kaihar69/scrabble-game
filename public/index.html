@@ -12,7 +12,7 @@
             --tile-color: #f3e5ab; --tile-text: #2c3e50;
             --ui-dark: #2c3e50; --ui-gold: #d4af37; 
             --wood-dark: #5d4037; --wood-light: #8d6e63;
-            --header-h: 60px; --footer-h: 130px;
+            --header-h: 70px; --footer-h: 130px;
         }
 
         * { box-sizing: border-box; }
@@ -20,44 +20,71 @@
         body { 
             font-family: 'Roboto', sans-serif; 
             background-color: var(--bg-color);
-            background-image: 
-                radial-gradient(circle at 100% 150%, var(--bg-color) 24%, var(--bg-pattern) 25%, var(--bg-pattern) 28%, var(--bg-color) 29%, var(--bg-color) 36%, var(--bg-pattern) 36%, var(--bg-pattern) 40%, transparent 40%, transparent),
-                radial-gradient(circle at 0    150%, var(--bg-color) 24%, var(--bg-pattern) 25%, var(--bg-pattern) 28%, var(--bg-color) 29%, var(--bg-color) 36%, var(--bg-pattern) 36%, var(--bg-pattern) 40%, transparent 40%, transparent),
-                radial-gradient(circle at 50%  100%, var(--bg-pattern) 10%, var(--bg-color) 11%, var(--bg-color) 23%, var(--bg-pattern) 24%, var(--bg-pattern) 30%, var(--bg-color) 31%, var(--bg-color) 43%, var(--bg-pattern) 44%, var(--bg-pattern) 50%, transparent 50%, transparent),
-                radial-gradient(circle at 100% 50%, var(--bg-pattern) 5%, var(--bg-color) 6%, var(--bg-color) 15%, var(--bg-pattern) 16%, var(--bg-pattern) 20%, var(--bg-color) 21%, var(--bg-color) 30%, var(--bg-pattern) 31%, var(--bg-pattern) 35%, transparent 35%, transparent),
-                radial-gradient(circle at 0    50%, var(--bg-pattern) 5%, var(--bg-color) 6%, var(--bg-color) 15%, var(--bg-pattern) 16%, var(--bg-pattern) 20%, var(--bg-color) 21%, var(--bg-color) 30%, var(--bg-pattern) 31%, var(--bg-pattern) 35%, transparent 35%, transparent);
-            background-size: 50px 50px;
+            background-image: radial-gradient(var(--bg-pattern) 1px, transparent 1px);
+            background-size: 20px 20px;
             color: var(--ui-dark); margin: 0; padding: 0;
             height: 100dvh; width: 100vw; overflow: hidden;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
 
-        /* Scoreboard */
+        /* --- LOGIN SCREEN OVERLAY --- */
+        #login-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); /* Dunkel, transparent */
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        #login-box {
+            background: var(--bg-color);
+            padding: 30px; border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            text-align: center; border: 4px solid var(--ui-gold);
+            width: 90%; max-width: 400px;
+        }
+        #login-box h2 { font-family: 'Cinzel', serif; margin-top: 0; color: var(--wood-dark); }
+        #player-name-input {
+            width: 100%; padding: 15px; font-size: 1.2rem;
+            border: 2px solid var(--wood-light); border-radius: 5px;
+            margin-bottom: 20px; text-align: center; font-weight: bold;
+        }
+        #btn-start {
+            width: 100%; padding: 15px; font-size: 1.2rem; font-weight: bold;
+            background: linear-gradient(to bottom, #27ae60, #219150);
+            color: white; border: none; border-radius: 5px; cursor: pointer;
+            text-transform: uppercase; box-shadow: 0 4px 0 #145a32;
+        }
+        #btn-start:active { transform: translateY(2px); box-shadow: none; }
+
+        /* --- GAME UI --- */
         #scoreboard {
             height: var(--header-h); width: 98%; max-width: 600px;
             display: flex; justify-content: space-between; align-items: center;
             background: linear-gradient(to bottom, #34495e, #2c3e50);
             border-bottom: 3px solid var(--ui-gold);
-            border-radius: 0 0 15px 15px; padding: 0 25px;
+            border-radius: 0 0 15px 15px; padding: 0 15px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3); color: #ecf0f1;
             flex-shrink: 0; font-family: 'Cinzel', serif;
         }
-        .player-score { display: flex; flex-direction: column; align-items: center; opacity: 0.3; transition: all 0.3s; transform: scale(0.9); }
-        
-        /* Aktiver Spieler wird hervorgehoben */
+        .player-score { display: flex; flex-direction: column; align-items: center; opacity: 0.4; transition: all 0.3s; transform: scale(0.9); width: 100px;}
         .player-score.active-turn { opacity: 1; color: var(--ui-gold); text-shadow: 0 0 10px rgba(212, 175, 55, 0.5); transform: scale(1.1); font-weight: bold; }
         
-        .score-label { font-size: 0.7rem; letter-spacing: 1px; }
-        .score-val { font-size: 1.5em; font-weight: bold; }
-        #status { font-family: 'Roboto', sans-serif; font-size: 0.9em; color: var(--ui-gold); font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+        .score-label { font-size: 0.7rem; letter-spacing: 1px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;}
+        .score-val { font-size: 1.4em; font-weight: bold; }
+        
+        #status { 
+            flex-grow: 1; text-align: center;
+            font-family: 'Roboto', sans-serif; font-size: 1em; color: var(--ui-gold); 
+            font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
+            padding: 0 10px;
+        }
 
-        /* Board */
-        #board-wrapper { flex-grow: 1; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 10px; }
+        #board-wrapper { flex-grow: 1; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 5px; }
         #game-board { 
             display: grid; grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr);
             gap: 2px; background: var(--grid-gap); border: 5px solid var(--board-border); border-radius: 4px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            width: min(95vw, calc(100dvh - 200px)); height: min(95vw, calc(100dvh - 200px));
+            width: min(96vw, calc(100dvh - 210px)); height: min(96vw, calc(100dvh - 210px));
             aspect-ratio: 1 / 1; 
         }
         .cell { background: var(--field-green); display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; user-select: none; }
@@ -77,51 +104,48 @@
         .tile-score { position: absolute; bottom: 8%; right: 10%; font-size: 32%; font-weight: 600; color: #444; }
         .preview .tile-look { opacity: 0.7; box-shadow: none; border: 2px dotted #333; background: #fff; }
 
-        /* UI & Controls */
-        #ui-container { height: var(--footer-h); width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 15px; padding: 0 15px 15px 15px; justify-content: flex-end; flex-shrink: 0; }
+        #ui-container { height: var(--footer-h); width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 10px; padding: 0 10px 10px 10px; justify-content: flex-end; flex-shrink: 0; }
         #rack { 
             background: linear-gradient(to bottom, var(--wood-dark), var(--wood-light)); padding: 8px 10px 4px 10px;
-            border-radius: 10px 10px 4px 4px; display: flex; justify-content: center; gap: 4px; height: 65px; 
+            border-radius: 10px 10px 4px 4px; display: flex; justify-content: center; gap: 4px; height: 60px; 
             box-shadow: inset 0 4px 8px rgba(0,0,0,0.6), 0 5px 10px rgba(0,0,0,0.3); position: relative;
         }
         #rack::after { content: ''; position: absolute; bottom: 0; left:0; right:0; height: 5px; background: var(--wood-dark); border-radius: 0 0 4px 4px; box-shadow: inset 0 -1px 2px rgba(0,0,0,0.5); }
         .hand-slot { height: 90%; aspect-ratio: 1/1; display: flex; align-items: flex-end; justify-content: center; cursor: pointer; transition: transform 0.2s; z-index: 2; }
         .hand-slot.selected { transform: translateY(-15px); }
 
-        #controls { display: flex; justify-content: center; gap: 20px; height: 50px; }
+        #controls { display: flex; justify-content: center; gap: 15px; height: 45px; }
         button { 
-            flex: 1; max-width: 180px; font-size: 1rem; font-family: 'Roboto', sans-serif;
+            flex: 1; max-width: 180px; font-size: 0.9rem; font-family: 'Roboto', sans-serif;
             border: none; border-radius: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; cursor: pointer;
             touch-action: manipulation; transition: all 0.2s; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3);
             box-shadow: 0 5px 15px rgba(0,0,0,0.2); position: relative; overflow: hidden;
         }
-        button::after { content: ''; position: absolute; top:0; left:0; width: 100%; height: 50%; background: linear-gradient(to bottom, rgba(255,255,255,0.3), transparent); }
-        
+        button:disabled { background: #7f8c8d; cursor: not-allowed; box-shadow: none; transform: none; opacity: 0.5; }
         .btn-submit { background: linear-gradient(to bottom, #2ecc71, #27ae60); }
         .btn-submit:active { transform: translateY(2px); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .btn-reset { background: linear-gradient(to bottom, #e74c3c, #c0392b); }
         .btn-reset:active { transform: translateY(2px); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-
-        /* Deaktivierte Buttons */
-        button:disabled {
-            background: #95a5a6; /* Grau */
-            cursor: not-allowed;
-            transform: none !important;
-            box-shadow: none;
-            opacity: 0.6;
-        }
     </style>
 </head>
 <body>
+
+    <div id="login-screen">
+        <div id="login-box">
+            <h2>Willkommen Chef</h2>
+            <input type="text" id="player-name-input" placeholder="Dein Name" maxlength="12">
+            <button id="btn-start">Spiel starten</button>
+        </div>
+    </div>
     
     <div id="scoreboard">
         <div class="player-score" id="p1-score">
-            <span class="score-label">SPIELER 1</span>
+            <span class="score-label" id="p1-name">WARTE...</span>
             <span class="score-val" id="score-0">0</span>
         </div>
-        <div id="status">Lade...</div>
+        <div id="status">Warte...</div>
         <div class="player-score" id="p2-score">
-            <span class="score-label">SPIELER 2</span>
+            <span class="score-label" id="p2-name">WARTE...</span>
             <span class="score-val" id="score-1">0</span>
         </div>
     </div>
@@ -133,14 +157,20 @@
     <div id="ui-container">
         <div id="rack"></div>
         <div id="controls">
-            <button class="btn-reset" id="btn-reset" onclick="resetTurn()">Zurück</button>
-            <button class="btn-submit" id="btn-submit" onclick="submitTurn()">Legen</button>
+            <button class="btn-reset" id="btn-reset" onclick="resetTurn()" disabled>Zurück</button>
+            <button class="btn-submit" id="btn-submit" onclick="submitTurn()" disabled>Legen</button>
         </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
+        
+        // Elemente
+        const loginScreen = document.getElementById('login-screen');
+        const nameInput = document.getElementById('player-name-input');
+        const btnStart = document.getElementById('btn-start');
+        
         const boardElement = document.getElementById('game-board');
         const rackElement = document.getElementById('rack');
         const statusElement = document.getElementById('status');
@@ -153,7 +183,18 @@
         let currentTurnMoves = []; 
         
         let myPlayerIndex = -1;
-        let activePlayerIndex = 0; // Wer ist dran?
+        let activePlayerIndex = 0;
+
+        // Login Logik
+        btnStart.addEventListener('click', () => {
+            const name = nameInput.value.trim();
+            if (name) {
+                socket.emit('join-game', name);
+                loginScreen.style.display = 'none';
+            } else {
+                alert("Bitte Namen eingeben!");
+            }
+        });
 
         const LETTER_SCORES = {
             "A": 1, "B": 3, "C": 4, "D": 1, "E": 1, "F": 4, "G": 2, "H": 2, 
@@ -181,6 +222,7 @@
             return `<div class="tile-look"><span class="tile-letter">${letter}</span><span class="tile-score">${score}</span></div>`;
         }
 
+        // Board Render
         for (let i = 0; i < 225; i++) {
             const cell = document.createElement('div');
             cell.classList.add('cell');
@@ -191,15 +233,12 @@
             let labelText = "";
             if(type === 'tw') labelText = "3W"; else if(type === 'dw') labelText = "2W";
             else if(type === 'tl') labelText = "3B"; else if(type === 'dl') labelText = "2B";
-            
             if (type === 'center') cell.innerHTML = '<span class="star">★</span>';
             else if (labelText) cell.innerHTML = `<span class="cell-label">${labelText}</span>`;
 
             cell.dataset.index = i;
             cell.addEventListener('click', () => {
-                // Nur klicken, wenn man dran ist!
                 if (myPlayerIndex !== activePlayerIndex) return;
-
                 const isOccupiedServer = currentBoard[i] !== null;
                 const isOccupiedLocal = currentTurnMoves.find(m => m.index === i);
                 if (!isOccupiedServer && !isOccupiedLocal && selectedTile) {
@@ -221,7 +260,7 @@
                 slot.classList.add('hand-slot');
                 slot.innerHTML = createTileHTML(letter);
                 slot.addEventListener('click', () => {
-                    if (myPlayerIndex !== activePlayerIndex) return; // Nicht dran
+                    if (myPlayerIndex !== activePlayerIndex) return; 
                     document.querySelectorAll('.hand-slot').forEach(t => t.classList.remove('selected'));
                     slot.classList.add('selected');
                     selectedTile = { letter: letter, handIndex: idx };
@@ -267,33 +306,61 @@
             const p1 = document.getElementById('p1-score');
             const p2 = document.getElementById('p2-score');
             
-            // Scoreboard Highlights
             p1.classList.remove('active-turn');
             p2.classList.remove('active-turn');
             if(activePlayerIndex === 0) p1.classList.add('active-turn');
             if(activePlayerIndex === 1) p2.classList.add('active-turn');
 
-            // Bin ICH dran?
+            if(myPlayerIndex === -1) {
+                statusElement.innerText = "ZUSCHAUER / VOLL";
+                statusElement.style.color = "#ccc";
+                return;
+            }
+
             const isMyTurn = (myPlayerIndex === activePlayerIndex);
             
             if (isMyTurn) {
-                statusElement.innerText = "DU BIST DRAN";
-                statusElement.style.color = "#2ecc71"; // Grün
+                statusElement.innerText = "DU BIST DRAN!";
+                statusElement.style.color = "#2ecc71"; 
                 btnSubmit.disabled = false;
                 btnReset.disabled = false;
                 rackElement.style.opacity = "1";
             } else {
-                statusElement.innerText = "GEGNER IST DRAN";
-                statusElement.style.color = "#e74c3c"; // Rot
+                statusElement.innerText = "GEGNER IST AM ZUG";
+                statusElement.style.color = "#e74c3c";
                 btnSubmit.disabled = true;
                 btnReset.disabled = true;
-                rackElement.style.opacity = "0.5"; // Hand leicht ausblenden
+                rackElement.style.opacity = "0.6";
+                selectedTile = null;
+                document.querySelectorAll('.hand-slot').forEach(t => t.classList.remove('selected'));
             }
         }
 
         socket.on('player-assignment', (data) => {
             myPlayerIndex = data.playerIndex;
-            // Wir aktualisieren hier noch nicht den Turn, warten auf 'update-turn'
+        });
+
+        socket.on('update-names', (names) => {
+            const p1Label = document.getElementById('p1-name');
+            const p2Label = document.getElementById('p2-name');
+            
+            // Namen setzen
+            let p1Name = names[0] || "Warte...";
+            let p2Name = names[1] || "Warte...";
+
+            // "(DU)" Markierung hinzufügen
+            if (myPlayerIndex === 0) p1Name += " (DU)";
+            if (myPlayerIndex === 1) p2Name += " (DU)";
+
+            p1Label.innerText = p1Name;
+            p2Label.innerText = p2Name;
+        });
+
+        socket.on('game-full', () => {
+            alert("Das Spiel ist leider schon voll!");
+            statusElement.innerText = "SPIEL IST VOLL";
+            myPlayerIndex = -1;
+            loginScreen.style.display = 'none'; // Trotzdem Screen wegmachen zum Zuschauen
         });
 
         socket.on('update-turn', (idx) => {
