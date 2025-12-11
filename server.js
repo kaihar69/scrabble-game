@@ -5,10 +5,17 @@ const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server);
 
-// Frontend-Dateien bereitstellen
 app.use(express.static('public'));
 
-// --- Setup: Buchstaben-Beutel (Deutsch) ---
+// --- Konfiguration: Buchstabenwerte ---
+const LETTER_SCORES = {
+    "A": 1, "B": 3, "C": 4, "D": 1, "E": 1, "F": 4, "G": 2, "H": 2, 
+    "I": 1, "J": 6, "K": 4, "L": 2, "M": 3, "N": 1, "O": 2, "P": 4, 
+    "Q": 10, "R": 1, "S": 1, "T": 1, "U": 1, "V": 6, "W": 3, "X": 8, 
+    "Y": 10, "Z": 3
+};
+
+// --- Konfiguration: Buchstabenbeutel ---
 const INITIAL_BAG = [];
 const distribution = [
     { l: 'E', c: 15 }, { l: 'N', c: 9 }, { l: 'S', c: 7 }, { l: 'I', c: 6 }, 
@@ -20,7 +27,7 @@ const distribution = [
 ];
 distribution.forEach(item => { for(let i=0; i<item.c; i++) INITIAL_BAG.push(item.l); });
 
-// Hilfsfunktionen
+// --- Hilfsfunktionen ---
 function shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -29,10 +36,45 @@ function shuffle(array) {
     return array;
 }
 
-// Spielstatus
+// Ermittelt Multiplikatoren für ein Feld (Muss zum Frontend passen!)
+function getMultipliers(index) {
+    const x = index % 15;
+    const y = Math.floor(index / 15);
+    const k = x + "," + y;
+    
+    let wm = 1; // Wort-Multiplikator
+    let lm = 1; // Buchstaben-Multiplikator
+
+    // Mitte (Start) zählt als 2W
+    if (k === "7,7") return { wm: 2, lm: 1 };
+
+    // Triple Word (3W) - Rot
+    if ((x===0||x===7||x===14) && (y===0||y===7||y===14)) return { wm: 3, lm: 1 };
+    
+    // Double Word (2W) - Orange/Pink
+    if ((x===y || x+y===14)) {
+         if(x>=1 && x<=4) return { wm: 2, lm: 1 };
+         if(x>=10 && x<=13) return { wm: 2, lm: 1 };
+    }
+
+    // Triple Letter (3B) - Dunkelblau
+    if ((x===5||x===9)&&(y===1||y===5||y===9||y===13)) return { wm: 1, lm: 3 };
+    if ((y===5||y===9)&&(x===1||x===5||x===9||x===13)) return { wm: 1, lm: 3 };
+
+    // Double Letter (2B) - Hellblau
+    if ((x===3||x===11)&&(y===0||y===7||y===14)) return { wm: 1, lm: 2 };
+    if ((y===3||y===11)&&(x===0||x===7||x===14)) return { wm: 1, lm: 2 };
+    if ((x===2||x===6||x===8||x===12) && (y===6||y===8)) return { wm: 1, lm: 2 };
+    if ((y===2||y===6||y===8||y===12) && (x===6||x===8)) return { wm: 1, lm: 2 };
+    
+    return { wm: 1, lm: 1 };
+}
+
+// --- Spielstatus ---
 let gameState = {
     board: Array(15 * 15).fill(null),
-    players: {},
+    players: {}, 
+    playerOrder: [],
     tileBag: shuffle([...INITIAL_BAG]),
     isFirstMove: true 
 };
@@ -45,62 +87,134 @@ function drawTiles(count) {
     return drawn;
 }
 
-// --- Regel-Prüfung ---
-function validateMove(moves, board) {
-    if (moves.length === 0) return { valid: false, msg: "Keine Steine gelegt." };
+// --- Logik: Punkte berechnen ---
+function calculateMoveScore(moves, board) {
+    let totalScore = 0;
+    const newIndices = moves.map(m => m.index);
+    
+    // Temporäres Board simulieren
+    let tempBoard = [...board];
+    moves.forEach(m => tempBoard[m.index] = m.letter);
 
+    // Hauptrichtung erkennen
+    const isHorizontal = moves.length > 1 ? (Math.floor(moves[0].index/15) === Math.floor(moves[1].index/15)) : true;
+
+    // Funktion um ein einzelnes Wort zu bewerten
+    function scoreWordAt(startIndex, scanHorizontal) {
+        let currentIdx = startIndex;
+        const step = scanHorizontal ? 1 : 15;
+        
+        // Wortanfang suchen
+        while(true) {
+            const prev = currentIdx - step;
+            if (scanHorizontal && Math.floor(prev/15) !== Math.floor(currentIdx/15)) break; // Zeilengrenze
+            if (!scanHorizontal && prev < 0) break;
+            if (tempBoard[prev]) currentIdx = prev;
+            else break;
+        }
+
+        let wordScore = 0;
+        let wordMultiplier = 1;
+        let lettersCount = 0;
+
+        // Wort scannen
+        while(true) {
+            if (currentIdx >= 225) break;
+            if (scanHorizontal && Math.floor(currentIdx/15) !== Math.floor(startIndex/15) && currentIdx !== startIndex) break; // Zeilengrenze beim Scannen
+
+            const letter = tempBoard[currentIdx];
+            if (!letter) break;
+
+            let val = LETTER_SCORES[letter] || 0;
+            
+            // Multiplikatoren gelten nur für NEU gelegte Steine
+            if (newIndices.includes(currentIdx)) {
+                const m = getMultipliers(currentIdx);
+                val *= m.lm;
+                wordMultiplier *= m.wm;
+            }
+
+            wordScore += val;
+            lettersCount++;
+            currentIdx += step;
+        }
+        
+        // Ein Wort muss mind. 2 Buchstaben haben
+        return lettersCount > 1 ? wordScore * wordMultiplier : 0;
+    }
+
+    // 1. Hauptwort berechnen
+    let mainScore = scoreWordAt(moves[0].index, isHorizontal);
+    // Sonderfall: Einzelner Stein kann horizontal ODER vertikal gewertet werden
+    if (moves.length === 1) mainScore += scoreWordAt(moves[0].index, !isHorizontal);
+    
+    totalScore += mainScore;
+
+    // 2. Quer-Wörter berechnen
+    if (moves.length > 1) {
+        moves.forEach(m => {
+            totalScore += scoreWordAt(m.index, !isHorizontal);
+        });
+    }
+
+    // 3. Bingo Bonus (Alle 7 Steine gelegt)
+    if (moves.length === 7) totalScore += 50;
+
+    return totalScore;
+}
+
+// --- Logik: Zug validieren ---
+function validateMove(moves, board) {
+    if (moves.length === 0) return { valid: false };
     const indices = moves.map(m => m.index).sort((a, b) => a - b);
     const coords = indices.map(i => ({ x: i % 15, y: Math.floor(i / 15) }));
     
-    // 1. Linie prüfen
+    // Linie prüfen
     const allSameX = coords.every(c => c.x === coords[0].x);
     const allSameY = coords.every(c => c.y === coords[0].y);
+    if (!allSameX && !allSameY) return { valid: false, msg: "Steine müssen in einer Linie liegen." };
 
-    if (!allSameX && !allSameY) {
-        return { valid: false, msg: "Steine müssen in einer Linie liegen." };
-    }
-
-    // 2. Start-Regel
+    // Startregel
     if (gameState.isFirstMove) {
-        const touchesCenter = indices.includes(112);
-        if (!touchesCenter) return { valid: false, msg: "Erster Zug muss über die Mitte (Stern) gehen." };
+        if (!indices.includes(112)) return { valid: false, msg: "Erster Zug muss über den Stern (Mitte)." };
     } else {
-        // 3. Anschluss-Regel
+        // Anschlussregel
         let isConnected = false;
         const directions = [-1, 1, -15, 15];
-        
         indices.forEach(idx => {
             directions.forEach(dir => {
-                const neighbor = idx + dir;
-                if (neighbor >= 0 && neighbor < 225 && board[neighbor] !== null) {
-                    isConnected = true;
-                }
+                const n = idx + dir;
+                if (n >= 0 && n < 225 && board[n] !== null) isConnected = true;
             });
         });
-
         if (!isConnected) return { valid: false, msg: "Wort muss an bestehende Steine andocken." };
     }
-
     return { valid: true };
 }
 
-// --- Socket Verbindung ---
+// --- Socket Events ---
 io.on('connection', (socket) => {
-    console.log('Neuer Spieler:', socket.id);
+    console.log('Verbindung:', socket.id);
     
-    // Initial: Hand geben
-    gameState.players[socket.id] = { hand: drawTiles(7), score: 0 };
+    // Spieler Setup
+    if (!gameState.players[socket.id]) {
+        gameState.players[socket.id] = { hand: drawTiles(7), score: 0 };
+        gameState.playerOrder.push(socket.id);
+    }
     
-    const playerIndex = Object.keys(gameState.players).length - 1;
+    const playerIndex = gameState.playerOrder.indexOf(socket.id);
+    
+    // Initiale Daten senden
     socket.emit('player-assignment', { playerIndex });
     socket.emit('update-board', gameState.board);
     socket.emit('update-hand', gameState.players[socket.id].hand);
+    io.emit('update-scores', gameState.playerOrder.map(id => ({ id, score: gameState.players[id].score })));
 
-    // Spieler sendet Zug
+    // Zug empfangen
     socket.on('submit-turn', (moves) => {
         const player = gameState.players[socket.id];
         
-        // Cheat-Schutz: Hat er die Steine?
+        // 1. Hat Spieler die Steine?
         let tempHand = [...player.hand];
         let hasTiles = true;
         for (let move of moves) {
@@ -108,38 +222,43 @@ io.on('connection', (socket) => {
             if (idx === -1) hasTiles = false;
             else tempHand.splice(idx, 1);
         }
-        
         if (!hasTiles) {
-            socket.emit('move-error', "Fehler: Du hast diese Buchstaben nicht!");
+            socket.emit('move-error', "Buchstaben nicht in der Hand!");
             return;
         }
 
-        // Regel-Check
+        // 2. Ist Zug geometrisch gültig?
         const validation = validateMove(moves, gameState.board);
         if (!validation.valid) {
             socket.emit('move-error', validation.msg);
             return;
         }
 
-        // Zug ausführen
+        // 3. Punkte berechnen & addieren
+        const points = calculateMoveScore(moves, gameState.board);
+        player.score += points;
+
+        // 4. Zug ausführen
         moves.forEach(move => {
             gameState.board[move.index] = move.letter;
             const handIndex = player.hand.indexOf(move.letter);
             if (handIndex !== -1) player.hand.splice(handIndex, 1);
         });
 
-        // Nachziehen
+        // 5. Nachziehen
         const newTiles = drawTiles(moves.length);
         player.hand.push(...newTiles);
-
         gameState.isFirstMove = false;
 
+        // 6. Alle Updates senden
         io.emit('update-board', gameState.board);
         socket.emit('update-hand', player.hand);
+        io.emit('update-scores', gameState.playerOrder.map(id => ({ id, score: gameState.players[id].score })));
     });
 
     socket.on('disconnect', () => {
-        delete gameState.players[socket.id];
+        // Spieler bleibt im Speicher für Reconnect, in Produktion würde man hier aufräumen
+        console.log("Disconnect", socket.id);
     });
 });
 
