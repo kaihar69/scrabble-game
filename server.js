@@ -8,11 +8,8 @@ const io = new Server(server);
 app.use(express.static('public'));
 
 // --- KONFIGURATION ---
-
-// Wie lange darf ein Raum inaktiv sein, bevor er gelöscht wird? (in Millisekunden)
-// 24 Stunden = 24 * 60 * 60 * 1000
+// 24 Stunden Inaktivität erlaubt, bevor gelöscht wird
 const MAX_IDLE_TIME = 24 * 60 * 60 * 1000; 
-// Wie oft schaut der Hausmeister vorbei? (Alle 30 Minuten)
 const CLEANUP_INTERVAL = 30 * 60 * 1000;
 
 const LETTER_SCORES = {
@@ -75,7 +72,6 @@ function calculateMoveScore(moves, board) {
     function scoreWordAt(startIndex, scanHorizontal) {
         let currentIdx = startIndex;
         const step = scanHorizontal ? 1 : 15;
-        // Rückwärts suchen für Wortanfang
         while(true) {
             const prev = currentIdx - step;
             if (scanHorizontal && Math.floor(prev/15) !== Math.floor(currentIdx/15)) break;
@@ -83,7 +79,6 @@ function calculateMoveScore(moves, board) {
             if (tempBoard[prev]) currentIdx = prev; else break;
         }
         let wordScore = 0; let wordMultiplier = 1; let lettersCount = 0;
-        // Vorwärts scannen
         while(true) {
             if (currentIdx >= 225) break;
             if (scanHorizontal && Math.floor(currentIdx/15) !== Math.floor(startIndex/15) && currentIdx !== startIndex) break;
@@ -131,8 +126,8 @@ function validateMove(moves, board, isFirstMove) {
     return { valid: true };
 }
 
-// --- STATE MANAGEMENT ---
-// Hier werden alle Spiele gespeichert: { 'RAUMNAME': { ...gameData... } }
+// --- STATE MANAGEMENT (RAM) ---
+// Hier leben die Spiele jetzt wieder
 const games = {};
 
 function createGame(roomId) {
@@ -142,23 +137,83 @@ function createGame(roomId) {
         tileBag: shuffle([...INITIAL_BAG_TEMPLATE]),
         isFirstMove: true,
         activePlayerIndex: 0,
-        players: [], // Array von { id, name, hand, score }
-        lastActivity: Date.now() // Zeitstempel für den Hausmeister
+        players: [], // { id, name, hand, score, isBot }
+        lastActivity: Date.now()
     };
 }
 
-// --- DER HAUSMEISTER (CLEANUP) ---
+// --- BOT LOGIK ---
+function triggerBotTurn(room) {
+    if (!games[room]) return;
+    const game = games[room];
+    const player = game.players[game.activePlayerIndex];
+
+    if (!player || !player.isBot) return;
+
+    setTimeout(() => {
+        if (!games[room]) return;
+
+        if (game.isFirstMove) {
+            // CHEF legen
+            const cheatWord = ['C', 'H', 'E', 'F'];
+            const cheatIndices = [112, 113, 114, 115];
+            const moves = [];
+            cheatWord.forEach((char, i) => moves.push({ index: cheatIndices[i], letter: char }));
+            
+            const points = calculateMoveScore(moves, game.board);
+            player.score += points;
+            
+            moves.forEach(move => {
+                game.board[move.index] = move.letter;
+                // Hand fake cleanup
+                if(player.hand.length > 0) player.hand.pop();
+            });
+            
+            const newTiles = drawTiles(game.tileBag, moves.length);
+            player.hand.push(...newTiles);
+            game.isFirstMove = false;
+            
+            io.to(room).emit('game-msg', `${player.name} legt CHEF (${points} Pkt).`);
+
+        } else {
+            // Tauschen oder Passen
+            const count = Math.min(player.hand.length, 3);
+            if (count > 0 && game.tileBag.length >= count) {
+                const swapped = player.hand.splice(0, count);
+                game.tileBag.push(...swapped);
+                shuffle(game.tileBag);
+                const newTiles = drawTiles(game.tileBag, count);
+                player.hand.push(...newTiles);
+                
+                io.to(room).emit('game-msg', `${player.name} tauscht ${count} Steine.`);
+            } else {
+                io.to(room).emit('game-msg', `${player.name} passt.`);
+            }
+        }
+
+        game.activePlayerIndex = (game.activePlayerIndex + 1) % game.players.length;
+        game.lastActivity = Date.now();
+        
+        io.to(room).emit('update-game-state', {
+            board: game.board,
+            players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id, isBot: p.isBot })),
+            activePlayerIndex: game.activePlayerIndex,
+            bagCount: game.tileBag.length
+        });
+
+        triggerBotTurn(room); 
+
+    }, 2000);
+}
+
+// --- HAUSMEISTER (Cleanup) ---
 setInterval(() => {
     const now = Date.now();
-    const rooms = Object.keys(games);
-    let deleted = 0;
-    rooms.forEach(roomId => {
+    Object.keys(games).forEach(roomId => {
         if (now - games[roomId].lastActivity > MAX_IDLE_TIME) {
             delete games[roomId];
-            deleted++;
         }
     });
-    if (deleted > 0) console.log(`Hausmeister: ${deleted} inaktive Räume gelöscht.`);
 }, CLEANUP_INTERVAL);
 
 
@@ -170,58 +225,75 @@ io.on('connection', (socket) => {
         const room = roomId.trim().toUpperCase() || "LOBBY";
         socket.join(room); 
 
-        // Spiel laden oder erstellen
         if (!games[room]) games[room] = createGame(room);
         const game = games[room];
-        
-        // Aktivität updaten
         game.lastActivity = Date.now();
 
-        // Ist voll?
         if (game.players.length >= 4) {
-            socket.emit('error-msg', "Raum ist voll (Max 4).");
+            socket.emit('error-msg', "Raum ist voll.");
             return;
         }
 
-        // Neuen Spieler anlegen
         const newPlayer = {
             id: socket.id,
             name: name || `Spieler ${game.players.length + 1}`,
             hand: drawTiles(game.tileBag, 7),
-            score: 0
+            score: 0,
+            isBot: false
         };
         game.players.push(newPlayer);
-        socket.data.roomId = room; // Speichern für später
+        socket.data.roomId = room;
 
-        // Alle im Raum informieren
         io.to(room).emit('update-game-state', {
             board: game.board,
-            players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id })),
+            players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id, isBot: p.isBot })),
             activePlayerIndex: game.activePlayerIndex,
             bagCount: game.tileBag.length
         });
-        
-        // Hand senden (nur an mich)
         socket.emit('update-hand', newPlayer.hand);
         
-        // Systemnachricht
-        io.to(room).emit('game-msg', `${newPlayer.name} ist beigetreten.`);
+        triggerBotTurn(room);
     });
 
-    // 2. LEGEN (PLACE)
+    // BOT ADD
+    socket.on('add-bot', () => {
+        const room = socket.data.roomId;
+        if (!room || !games[room]) return;
+        const game = games[room];
+
+        if (game.players.length >= 4) return;
+
+        const botName = "Robo-Chef " + (Math.floor(Math.random()*100));
+        game.players.push({
+            id: "BOT-" + Date.now(),
+            name: botName,
+            hand: drawTiles(game.tileBag, 7),
+            score: 0,
+            isBot: true
+        });
+        
+        io.to(room).emit('update-game-state', {
+            board: game.board,
+            players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id, isBot: p.isBot })),
+            activePlayerIndex: game.activePlayerIndex,
+            bagCount: game.tileBag.length
+        });
+        io.to(room).emit('game-msg', `${botName} ist beigetreten.`);
+        
+        triggerBotTurn(room);
+    });
+
+    // 2. LEGEN
     socket.on('action-place', (moves) => {
         const room = socket.data.roomId;
         if (!room || !games[room]) return;
         const game = games[room];
-        
         game.lastActivity = Date.now();
 
         const pIndex = game.players.findIndex(p => p.id === socket.id);
-        if (pIndex !== game.activePlayerIndex) return; // Nicht dran
+        if (pIndex !== game.activePlayerIndex) return;
 
         const player = game.players[pIndex];
-
-        // Validierung: Hat er die Steine?
         let tempHand = [...player.hand];
         let hasTiles = true;
         for (let move of moves) {
@@ -230,104 +302,87 @@ io.on('connection', (socket) => {
         }
         if (!hasTiles) return;
 
-        // Validierung: Geometrie & Regeln
         const validation = validateMove(moves, game.board, game.isFirstMove);
-        if (!validation.valid) {
-            socket.emit('error-msg', validation.msg);
-            return;
-        }
+        if (!validation.valid) { socket.emit('error-msg', validation.msg); return; }
 
-        // Punkte berechnen
         const points = calculateMoveScore(moves, game.board);
         player.score += points;
 
-        // Steine aufs Brett & aus Hand entfernen
         moves.forEach(move => {
             game.board[move.index] = move.letter;
             const handIndex = player.hand.indexOf(move.letter);
             if (handIndex !== -1) player.hand.splice(handIndex, 1);
         });
 
-        // Nachziehen
         const newTiles = drawTiles(game.tileBag, moves.length);
         player.hand.push(...newTiles);
         
         game.isFirstMove = false;
-        
-        // Nächster Spieler
         game.activePlayerIndex = (game.activePlayerIndex + 1) % game.players.length;
 
-        // Updates senden
         io.to(room).emit('update-game-state', {
             board: game.board,
-            players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id })),
+            players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id, isBot: p.isBot })),
             activePlayerIndex: game.activePlayerIndex,
             bagCount: game.tileBag.length
         });
         socket.emit('update-hand', player.hand);
-        io.to(room).emit('game-msg', `${player.name} hat ${points} Punkte erzielt.`);
+        io.to(room).emit('game-msg', `${player.name} hat ${points} Punkte.`);
+
+        triggerBotTurn(room);
     });
 
-    // 3. TAUSCHEN (SWAP)
-    socket.on('action-swap', (lettersToSwap) => {
+    // 3. TAUSCHEN
+    socket.on('action-swap', (letters) => {
         const room = socket.data.roomId;
         if (!room || !games[room]) return;
         const game = games[room];
-        
         game.lastActivity = Date.now();
 
         const pIndex = game.players.findIndex(p => p.id === socket.id);
         if (pIndex !== game.activePlayerIndex) return;
-
-        if (game.tileBag.length < lettersToSwap.length) {
-            socket.emit('error-msg', "Zu wenige Steine im Beutel zum Tauschen!");
-            return;
-        }
-
         const player = game.players[pIndex];
 
-        // Validieren & Entfernen
-        let validSwap = true;
+        if (game.tileBag.length < letters.length) { socket.emit('error-msg', "Zu wenige Steine!"); return; }
+
+        let valid = true;
         let tempHand = [...player.hand];
-        lettersToSwap.forEach(l => {
+        letters.forEach(l => {
             const idx = tempHand.indexOf(l);
-            if (idx === -1) validSwap = false; else tempHand.splice(idx, 1);
+            if (idx === -1) valid = false; else tempHand.splice(idx, 1);
         });
-        if (!validSwap) return;
+        if(!valid) return;
 
-        // Zurück in den Beutel & Mischen
-        lettersToSwap.forEach(l => game.tileBag.push(l));
+        letters.forEach(l => game.tileBag.push(l));
         shuffle(game.tileBag);
-
-        // Aus Hand löschen
-        lettersToSwap.forEach(l => {
+        
+        letters.forEach(l => {
             const realIdx = player.hand.indexOf(l);
             player.hand.splice(realIdx, 1);
         });
         
-        // Neu ziehen
-        const newTiles = drawTiles(game.tileBag, lettersToSwap.length);
+        const newTiles = drawTiles(game.tileBag, letters.length);
         player.hand.push(...newTiles);
 
-        // Nächster Spieler
         game.activePlayerIndex = (game.activePlayerIndex + 1) % game.players.length;
 
         io.to(room).emit('update-game-state', {
             board: game.board,
-            players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id })),
+            players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id, isBot: p.isBot })),
             activePlayerIndex: game.activePlayerIndex,
             bagCount: game.tileBag.length
         });
         socket.emit('update-hand', player.hand);
-        io.to(room).emit('game-msg', `${player.name} hat ${lettersToSwap.length} Steine getauscht.`);
+        io.to(room).emit('game-msg', `${player.name} tauscht.`);
+
+        triggerBotTurn(room);
     });
 
-    // 4. PASSEN (PASS)
+    // 4. PASSEN
     socket.on('action-pass', () => {
         const room = socket.data.roomId;
         if (!room || !games[room]) return;
         const game = games[room];
-        
         game.lastActivity = Date.now();
 
         const pIndex = game.players.findIndex(p => p.id === socket.id);
@@ -337,17 +392,17 @@ io.on('connection', (socket) => {
 
         io.to(room).emit('update-game-state', {
             board: game.board,
-            players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id })),
+            players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id, isBot: p.isBot })),
             activePlayerIndex: game.activePlayerIndex,
             bagCount: game.tileBag.length
         });
-        io.to(room).emit('game-msg', `${game.players[pIndex].name} hat gepasst.`);
+        io.to(room).emit('game-msg', `${game.players[pIndex].name} passt.`);
+
+        triggerBotTurn(room);
     });
 
     socket.on('disconnect', () => {
-        // Disconnect Logik (Optional: Aufräumen oder Wiederverbinden ermöglichen)
-        // Bei diesem einfachen Skript bleibt der Spieler im Array, um Indizes nicht zu verschieben,
-        // aber er kann nicht mehr agieren, bis er (theoretisch) reconnectet.
+        // Spieler bleibt "drin" bis zum Server-Neustart oder Hausmeister
     });
 });
 
