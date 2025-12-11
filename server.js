@@ -15,7 +15,7 @@ const LETTER_SCORES = {
     "Y": 10, "Z": 3
 };
 
-const INITIAL_BAG = [];
+const INITIAL_BAG_TEMPLATE = [];
 const distribution = [
     { l: 'E', c: 15 }, { l: 'N', c: 9 }, { l: 'S', c: 7 }, { l: 'I', c: 6 }, 
     { l: 'R', c: 6 }, { l: 'T', c: 6 }, { l: 'U', c: 6 }, { l: 'A', c: 5 },
@@ -24,14 +24,23 @@ const distribution = [
     { l: 'Z', c: 1 }, { l: 'K', c: 2 }, { l: 'V', c: 1 }, { l: 'P', c: 1 },
     { l: 'J', c: 1 }, { l: 'X', c: 1 }, { l: 'Q', c: 1 }, { l: 'Y', c: 1 }
 ];
-distribution.forEach(item => { for(let i=0; i<item.c; i++) INITIAL_BAG.push(item.l); });
+distribution.forEach(item => { for(let i=0; i<item.c; i++) INITIAL_BAG_TEMPLATE.push(item.l); });
 
+// --- Hilfsfunktionen ---
 function shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [array[i], array[j]] = [array[j], array[i]];
     }
     return array;
+}
+
+function drawTiles(bag, count) {
+    const drawn = [];
+    for(let i=0; i<count; i++) {
+        if(bag.length > 0) drawn.push(bag.pop());
+    }
+    return drawn;
 }
 
 function getMultipliers(index) {
@@ -48,24 +57,7 @@ function getMultipliers(index) {
     return { wm: 1, lm: 1 };
 }
 
-// --- Status ---
-let gameState = {
-    board: Array(15 * 15).fill(null),
-    tileBag: shuffle([...INITIAL_BAG]),
-    isFirstMove: true,
-    activePlayerIndex: 0, 
-    // Players Array speichert jetzt Objekte mit Namen
-    players: [null, null] 
-};
-
-function drawTiles(count) {
-    const drawn = [];
-    for(let i=0; i<count; i++) {
-        if(gameState.tileBag.length > 0) drawn.push(gameState.tileBag.pop());
-    }
-    return drawn;
-}
-
+// Punktberechnung (vereinfacht für Übersicht, Logik bleibt gleich)
 function calculateMoveScore(moves, board) {
     let totalScore = 0;
     const newIndices = moves.map(m => m.index);
@@ -76,6 +68,7 @@ function calculateMoveScore(moves, board) {
     function scoreWordAt(startIndex, scanHorizontal) {
         let currentIdx = startIndex;
         const step = scanHorizontal ? 1 : 15;
+        // Rückwärts suchen
         while(true) {
             const prev = currentIdx - step;
             if (scanHorizontal && Math.floor(prev/15) !== Math.floor(currentIdx/15)) break;
@@ -83,6 +76,7 @@ function calculateMoveScore(moves, board) {
             if (tempBoard[prev]) currentIdx = prev; else break;
         }
         let wordScore = 0; let wordMultiplier = 1; let lettersCount = 0;
+        // Vorwärts scannen
         while(true) {
             if (currentIdx >= 225) break;
             if (scanHorizontal && Math.floor(currentIdx/15) !== Math.floor(startIndex/15) && currentIdx !== startIndex) break;
@@ -106,16 +100,16 @@ function calculateMoveScore(moves, board) {
     return totalScore;
 }
 
-function validateMove(moves, board) {
+function validateMove(moves, board, isFirstMove) {
     if (moves.length === 0) return { valid: false };
     const indices = moves.map(m => m.index).sort((a, b) => a - b);
     const coords = indices.map(i => ({ x: i % 15, y: Math.floor(i / 15) }));
     const allSameX = coords.every(c => c.x === coords[0].x);
     const allSameY = coords.every(c => c.y === coords[0].y);
-    if (!allSameX && !allSameY) return { valid: false, msg: "Steine müssen in einer Linie liegen." };
+    if (!allSameX && !allSameY) return { valid: false, msg: "Linie einhalten." };
 
-    if (gameState.isFirstMove) {
-        if (!indices.includes(112)) return { valid: false, msg: "Start muss in der Mitte sein." };
+    if (isFirstMove) {
+        if (!indices.includes(112)) return { valid: false, msg: "Start in der Mitte." };
     } else {
         let isConnected = false;
         const directions = [-1, 1, -15, 15];
@@ -125,115 +119,204 @@ function validateMove(moves, board) {
                 if (n >= 0 && n < 225 && board[n] !== null) isConnected = true;
             });
         });
-        if (!isConnected) return { valid: false, msg: "Kein Anschluss." };
+        if (!isConnected) return { valid: false, msg: "Muss andocken." };
     }
     return { valid: true };
 }
 
+// --- STATE MANAGEMENT ---
+// Hier speichern wir alle aktiven Spiele
+const games = {};
+
+function createGame(roomId) {
+    return {
+        id: roomId,
+        board: Array(15 * 15).fill(null),
+        tileBag: shuffle([...INITIAL_BAG_TEMPLATE]),
+        isFirstMove: true,
+        activePlayerIndex: 0,
+        players: [] // Array von Objekten: { id, name, hand, score }
+    };
+}
+
 io.on('connection', (socket) => {
-    console.log('Neue Verbindung (noch ohne Name):', socket.id);
     
-    // Wir senden das aktuelle Board auch an Leute, die sich noch nicht eingeloggt haben (für den Hintergrund)
-    socket.emit('update-board', gameState.board);
+    // 1. Spieler tritt einem Raum bei
+    socket.on('join-game', ({ name, roomId }) => {
+        // Raum-ID sauber machen
+        const room = roomId.trim().toUpperCase() || "LOBBY";
+        socket.join(room); // Socket.io Raum Logik
 
-    // Erst wenn der Spieler seinen Namen sendet, darf er mitspielen
-    socket.on('join-game', (playerName) => {
-        // Freien Platz suchen
-        let myIndex = -1;
-        if (gameState.players[0] === null) myIndex = 0;
-        else if (gameState.players[1] === null) myIndex = 1;
+        // Spielstatus abrufen oder erstellen
+        if (!games[room]) games[room] = createGame(room);
+        const game = games[room];
 
-        if (myIndex === -1) {
-            socket.emit('game-full', true);
-            // Namen trotzdem senden, damit er sieht wer spielt
-            const names = gameState.players.map(p => p ? p.name : "Warte auf Spieler...");
-            socket.emit('update-names', names);
+        // Prüfen ob voll
+        if (game.players.length >= 4) {
+            socket.emit('error-msg', "Raum ist voll (Max 4).");
             return;
         }
 
-        // Spieler registrieren
-        gameState.players[myIndex] = {
+        // Spieler hinzufügen
+        const newPlayer = {
             id: socket.id,
-            name: playerName || `Spieler ${myIndex + 1}`, // Fallback Name
-            hand: drawTiles(7),
+            name: name || `Spieler ${game.players.length + 1}`,
+            hand: drawTiles(game.tileBag, 7),
             score: 0
         };
+        game.players.push(newPlayer);
 
-        // Daten senden
-        socket.emit('player-assignment', { playerIndex: myIndex });
-        socket.emit('update-hand', gameState.players[myIndex].hand);
+        // Wir speichern die RoomID am Socket, um später schnellen Zugriff zu haben
+        socket.data.roomId = room;
+
+        // Alle im Raum updaten
+        io.to(room).emit('update-game-state', {
+            board: game.board,
+            players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id })),
+            activePlayerIndex: game.activePlayerIndex,
+            bagCount: game.tileBag.length
+        });
         
-        // Allen sagen, wer spielt und wie es steht
-        const currentScores = gameState.players.map(p => p ? { score: p.score } : { score: 0 });
-        const currentNames = gameState.players.map(p => p ? p.name : "Warte auf Spieler...");
-        
-        io.emit('update-scores', currentScores);
-        io.emit('update-names', currentNames); // NEU: Namen verteilen
-        io.emit('update-turn', gameState.activePlayerIndex);
+        // Nur dem neuen Spieler seine Hand zeigen
+        socket.emit('update-hand', newPlayer.hand);
     });
 
-    socket.on('submit-turn', (moves) => {
-        // Welcher Index gehört zu diesem Socket?
-        let myIndex = -1;
-        if (gameState.players[0] && gameState.players[0].id === socket.id) myIndex = 0;
-        else if (gameState.players[1] && gameState.players[1].id === socket.id) myIndex = 1;
+    // 2. Zug machen (Legen)
+    socket.on('action-place', (moves) => {
+        const room = socket.data.roomId;
+        if (!room || !games[room]) return;
+        const game = games[room];
 
-        if (myIndex === -1) return; // Nicht eingeloggt
-        if (gameState.activePlayerIndex !== myIndex) return; // Nicht dran
+        const pIndex = game.players.findIndex(p => p.id === socket.id);
+        if (pIndex !== game.activePlayerIndex) return; // Nicht dran
 
-        const player = gameState.players[myIndex];
+        const player = game.players[pIndex];
 
-        // Cheat Check
+        // Validierung
         let tempHand = [...player.hand];
         let hasTiles = true;
         for (let move of moves) {
             const idx = tempHand.indexOf(move.letter);
             if (idx === -1) hasTiles = false; else tempHand.splice(idx, 1);
         }
-        if (!hasTiles) { socket.emit('move-error', "Buchstaben fehlen!"); return; }
+        if (!hasTiles) return;
 
-        const validation = validateMove(moves, gameState.board);
-        if (!validation.valid) { socket.emit('move-error', validation.msg); return; }
+        const validation = validateMove(moves, game.board, game.isFirstMove);
+        if (!validation.valid) {
+            socket.emit('error-msg', validation.msg);
+            return;
+        }
 
-        // Ausführen
-        const points = calculateMoveScore(moves, gameState.board);
+        // Punkte
+        const points = calculateMoveScore(moves, game.board);
         player.score += points;
 
+        // Ausführen
         moves.forEach(move => {
-            gameState.board[move.index] = move.letter;
+            game.board[move.index] = move.letter;
             const handIndex = player.hand.indexOf(move.letter);
             if (handIndex !== -1) player.hand.splice(handIndex, 1);
         });
 
-        const newTiles = drawTiles(moves.length);
+        // Nachziehen
+        const newTiles = drawTiles(game.tileBag, moves.length);
         player.hand.push(...newTiles);
-        gameState.isFirstMove = false;
+        
+        game.isFirstMove = false;
+        
+        // Nächster Spieler
+        game.activePlayerIndex = (game.activePlayerIndex + 1) % game.players.length;
 
-        // Zug wechseln
-        gameState.activePlayerIndex = (gameState.activePlayerIndex === 0) ? 1 : 0;
+        // Broadcast Updates
+        io.to(room).emit('update-game-state', {
+            board: game.board,
+            players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id })),
+            activePlayerIndex: game.activePlayerIndex,
+            bagCount: game.tileBag.length
+        });
+        socket.emit('update-hand', player.hand);
+    });
+
+    // 3. Tauschen (Swap)
+    socket.on('action-swap', (lettersToSwap) => {
+        // lettersToSwap ist ein Array von Buchstaben z.B. ['A', 'X']
+        const room = socket.data.roomId;
+        if (!room || !games[room]) return;
+        const game = games[room];
+        const pIndex = game.players.findIndex(p => p.id === socket.id);
+
+        if (pIndex !== game.activePlayerIndex) return;
+        if (game.tileBag.length < lettersToSwap.length) {
+            socket.emit('error-msg', "Nicht genug Steine im Beutel zum Tauschen!");
+            return;
+        }
+
+        const player = game.players[pIndex];
+
+        // Steine aus Hand entfernen und zurück in den Sack
+        let validSwap = true;
+        let tempHand = [...player.hand];
+        lettersToSwap.forEach(l => {
+            const idx = tempHand.indexOf(l);
+            if (idx === -1) validSwap = false;
+            else tempHand.splice(idx, 1);
+        });
+
+        if (!validSwap) return;
+
+        // Zurücklegen
+        lettersToSwap.forEach(l => game.tileBag.push(l));
+        shuffle(game.tileBag); // Mischen!
+
+        // Hand aktualisieren (erst entfernen, dann ziehen)
+        lettersToSwap.forEach(l => {
+            const realIdx = player.hand.indexOf(l);
+            player.hand.splice(realIdx, 1);
+        });
+        
+        const newTiles = drawTiles(game.tileBag, lettersToSwap.length);
+        player.hand.push(...newTiles);
+
+        // Zug beenden
+        game.activePlayerIndex = (game.activePlayerIndex + 1) % game.players.length;
 
         // Updates
-        io.emit('update-board', gameState.board);
+        io.to(room).emit('update-game-state', {
+            board: game.board,
+            players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id })),
+            activePlayerIndex: game.activePlayerIndex,
+            bagCount: game.tileBag.length
+        });
         socket.emit('update-hand', player.hand);
-        
-        const currentScores = gameState.players.map(p => p ? { score: p.score } : { score: 0 });
-        io.emit('update-scores', currentScores);
-        io.emit('update-turn', gameState.activePlayerIndex);
+        io.to(room).emit('game-msg', `${player.name} hat ${lettersToSwap.length} Steine getauscht.`);
+    });
+
+    // 4. Passen
+    socket.on('action-pass', () => {
+        const room = socket.data.roomId;
+        if (!room || !games[room]) return;
+        const game = games[room];
+        const pIndex = game.players.findIndex(p => p.id === socket.id);
+
+        if (pIndex !== game.activePlayerIndex) return;
+
+        // Einfach nur weitergeben
+        game.activePlayerIndex = (game.activePlayerIndex + 1) % game.players.length;
+
+        io.to(room).emit('update-game-state', {
+            board: game.board,
+            players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id })),
+            activePlayerIndex: game.activePlayerIndex,
+            bagCount: game.tileBag.length
+        });
+        io.to(room).emit('game-msg', `${game.players[pIndex].name} hat gepasst.`);
     });
 
     socket.on('disconnect', () => {
-        // Finden wer gegangen ist
-        let leaverIndex = -1;
-        if (gameState.players[0] && gameState.players[0].id === socket.id) leaverIndex = 0;
-        else if (gameState.players[1] && gameState.players[1].id === socket.id) leaverIndex = 1;
-
-        if (leaverIndex !== -1) {
-            console.log(`${gameState.players[leaverIndex].name} hat verlassen.`);
-            gameState.players[leaverIndex] = null;
-            // Namen updaten
-            const currentNames = gameState.players.map(p => p ? p.name : "Warte auf Spieler...");
-            io.emit('update-names', currentNames);
-        }
+        // Simple Lösung: Wer geht, ist weg. Das Spiel könnte "kaputt" gehen wenn der aktive Spieler geht.
+        // Für eine Profi-Lösung müsste man hier Reconnect-Logik bauen.
+        // Wir entfernen den Spieler erst mal nur aus der Liste für zukünftige Runden oder resetten.
+        // (Hier vereinfacht: Wir lassen ihn im Array als "Geist", damit Indices nicht kaputt gehen)
     });
 });
 
