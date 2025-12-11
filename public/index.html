@@ -7,31 +7,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Roboto:wght@500;900&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* NEU: Hellerer, wärmerer Hintergrund */
-            --bg-color: #eaddcf; 
-            --bg-pattern: #dcca ba;
-            
-            --board-border: #4e342e; 
-            --grid-gap: #111; 
-            --field-green: #2e7d32; 
-            --tile-color: #f3e5ab; 
-            --tile-text: #2c3e50;
-            
-            /* NEU: Edle UI Farben */
-            --ui-dark: #2c3e50;
-            --ui-gold: #d4af37; /* Goldener Akzent */
-            --wood-dark: #5d4037;
-            --wood-light: #8d6e63;
-
-            --header-h: 60px; /* Etwas höher für mehr Eleganz */
-            --footer-h: 130px;
+            --bg-color: #eaddcf; --bg-pattern: #dcca ba;
+            --board-border: #4e342e; --grid-gap: #111; --field-green: #2e7d32; 
+            --tile-color: #f3e5ab; --tile-text: #2c3e50;
+            --ui-dark: #2c3e50; --ui-gold: #d4af37; 
+            --wood-dark: #5d4037; --wood-light: #8d6e63;
+            --header-h: 60px; --footer-h: 130px;
         }
 
         * { box-sizing: border-box; }
 
         body { 
             font-family: 'Roboto', sans-serif; 
-            /* NEU: Heller Hintergrund mit dezentem Muster (CSS Trick) */
             background-color: var(--bg-color);
             background-image: 
                 radial-gradient(circle at 100% 150%, var(--bg-color) 24%, var(--bg-pattern) 25%, var(--bg-pattern) 28%, var(--bg-color) 29%, var(--bg-color) 36%, var(--bg-pattern) 36%, var(--bg-pattern) 40%, transparent 40%, transparent),
@@ -40,147 +27,89 @@
                 radial-gradient(circle at 100% 50%, var(--bg-pattern) 5%, var(--bg-color) 6%, var(--bg-color) 15%, var(--bg-pattern) 16%, var(--bg-pattern) 20%, var(--bg-color) 21%, var(--bg-color) 30%, var(--bg-pattern) 31%, var(--bg-pattern) 35%, transparent 35%, transparent),
                 radial-gradient(circle at 0    50%, var(--bg-pattern) 5%, var(--bg-color) 6%, var(--bg-color) 15%, var(--bg-pattern) 16%, var(--bg-pattern) 20%, var(--bg-color) 21%, var(--bg-color) 30%, var(--bg-pattern) 31%, var(--bg-pattern) 35%, transparent 35%, transparent);
             background-size: 50px 50px;
-            
-            color: var(--ui-dark);
-            margin: 0; padding: 0;
-            height: 100dvh; width: 100vw;
-            overflow: hidden;
-            display: flex; flex-direction: column; 
-            align-items: center; justify-content: center;
+            color: var(--ui-dark); margin: 0; padding: 0;
+            height: 100dvh; width: 100vw; overflow: hidden;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
 
-        /* --- OBEN: Scoreboard (Edel-Look) --- */
+        /* Scoreboard */
         #scoreboard {
-            height: var(--header-h);
-            width: 98%; max-width: 600px;
+            height: var(--header-h); width: 98%; max-width: 600px;
             display: flex; justify-content: space-between; align-items: center;
-            /* Polierter dunkler Look mit goldenem Rand unten */
             background: linear-gradient(to bottom, #34495e, #2c3e50);
             border-bottom: 3px solid var(--ui-gold);
-            border-radius: 0 0 15px 15px;
-            padding: 0 25px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            color: #ecf0f1;
-            flex-shrink: 0;
-            font-family: 'Cinzel', serif; /* Edle Schrift für Titel/Scores */
+            border-radius: 0 0 15px 15px; padding: 0 25px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); color: #ecf0f1;
+            flex-shrink: 0; font-family: 'Cinzel', serif;
         }
-        .player-score { display: flex; flex-direction: column; align-items: center; opacity: 0.6; transition: all 0.3s;}
-        /* Aktiver Spieler leuchtet golden */
-        .player-score.active { opacity: 1; color: var(--ui-gold); text-shadow: 0 0 10px rgba(212, 175, 55, 0.5); }
-        .score-label { font-size: 0.8rem; letter-spacing: 1px; }
-        .score-val { font-size: 1.5em; font-weight: bold; }
+        .player-score { display: flex; flex-direction: column; align-items: center; opacity: 0.3; transition: all 0.3s; transform: scale(0.9); }
         
-        #status { 
-            font-family: 'Roboto', sans-serif;
-            font-size: 0.9em; color: var(--ui-gold); 
-            font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; 
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-        }
+        /* Aktiver Spieler wird hervorgehoben */
+        .player-score.active-turn { opacity: 1; color: var(--ui-gold); text-shadow: 0 0 10px rgba(212, 175, 55, 0.5); transform: scale(1.1); font-weight: bold; }
+        
+        .score-label { font-size: 0.7rem; letter-spacing: 1px; }
+        .score-val { font-size: 1.5em; font-weight: bold; }
+        #status { font-family: 'Roboto', sans-serif; font-size: 0.9em; color: var(--ui-gold); font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
 
-        /* --- MITTE: Das Brett (Unverändert) --- */
-        #board-wrapper {
-            flex-grow: 1; width: 100%;
-            display: flex; justify-content: center; align-items: center;
-            overflow: hidden; padding: 10px;
-        }
+        /* Board */
+        #board-wrapper { flex-grow: 1; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 10px; }
         #game-board { 
-            display: grid; 
-            grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr);
-            gap: 2px; background: var(--grid-gap); 
-            border: 5px solid var(--board-border); /* Dickerer Rahmen */
-            border-radius: 4px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5); /* Tieferer Schatten */
-            width: min(95vw, calc(100dvh - 200px));
-            height: min(95vw, calc(100dvh - 200px));
+            display: grid; grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr);
+            gap: 2px; background: var(--grid-gap); border: 5px solid var(--board-border); border-radius: 4px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: min(95vw, calc(100dvh - 200px)); height: min(95vw, calc(100dvh - 200px));
             aspect-ratio: 1 / 1; 
         }
         .cell { background: var(--field-green); display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; user-select: none; }
         .cell-label { font-size: clamp(6px, 1.5vh, 10px); font-weight: bold; opacity: 0.7; text-align: center; pointer-events: none; }
-        .tw { background-color: #b71c1c; .cell-label { color: #fff; } } 
-        .dw { background-color: #f57f17; .cell-label { color: #fff; } } 
-        .tl { background-color: #0d47a1; .cell-label { color: #fff; } } 
-        .dl { background-color: #0288d1; .cell-label { color: #fff; } } 
+        .tw { background-color: #b71c1c; .cell-label { color: #fff; } } .dw { background-color: #f57f17; .cell-label { color: #fff; } } 
+        .tl { background-color: #0d47a1; .cell-label { color: #fff; } } .dl { background-color: #0288d1; .cell-label { color: #fff; } } 
         .center { background-color: #f57f17; display: flex; align-items: center; justify-content: center; }
         .star { font-size: 1.5em; color: #fff; line-height: 0; padding-bottom: 5px; }
         
-        /* Stein-Design (Leicht angepasst für mehr "Pop") */
         .tile-look {
-            background: linear-gradient(135deg, #fffdf0 0%, #f3e5ab 100%);
-            color: var(--tile-text);
-            width: 92%; height: 92%;
-            border-radius: 10%;
+            background: linear-gradient(135deg, #fffdf0 0%, #f3e5ab 100%); color: var(--tile-text);
+            width: 92%; height: 92%; border-radius: 10%;
             box-shadow: 2px 2px 4px rgba(0,0,0,0.4), inset 0 0 2px rgba(255,255,255,0.5);
-            display: flex; justify-content: center; align-items: center;
-            position: relative; z-index: 10;
+            display: flex; justify-content: center; align-items: center; position: relative; z-index: 10;
         }
         .tile-letter { font-size: 68%; font-weight: 900; }
         .tile-score { position: absolute; bottom: 8%; right: 10%; font-size: 32%; font-weight: 600; color: #444; }
         .preview .tile-look { opacity: 0.7; box-shadow: none; border: 2px dotted #333; background: #fff; }
 
-        /* --- UNTEN: Controls & Rack --- */
-        #ui-container {
-            height: var(--footer-h);
-            width: 100%; max-width: 600px; 
-            display: flex; flex-direction: column; gap: 15px;
-            padding: 0 15px 15px 15px;
-            justify-content: flex-end; flex-shrink: 0;
-        }
-
-        /* NEU: Das Holz-Bänkchen */
+        /* UI & Controls */
+        #ui-container { height: var(--footer-h); width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 15px; padding: 0 15px 15px 15px; justify-content: flex-end; flex-shrink: 0; }
         #rack { 
-            /* Holz-Textur per Gradient */
-            background: linear-gradient(to bottom, var(--wood-dark), var(--wood-light));
-            padding: 8px 10px 4px 10px; /* Oben mehr Platz */
-            border-radius: 10px 10px 4px 4px; 
-            display: flex; justify-content: center; gap: 4px;
-            height: 65px; 
-            /* Die "Rille" im Holz */
-            box-shadow: inset 0 4px 8px rgba(0,0,0,0.6), 0 5px 10px rgba(0,0,0,0.3);
-            position: relative;
+            background: linear-gradient(to bottom, var(--wood-dark), var(--wood-light)); padding: 8px 10px 4px 10px;
+            border-radius: 10px 10px 4px 4px; display: flex; justify-content: center; gap: 4px; height: 65px; 
+            box-shadow: inset 0 4px 8px rgba(0,0,0,0.6), 0 5px 10px rgba(0,0,0,0.3); position: relative;
         }
-        /* Ein kleiner Rand vorne am Bänkchen */
-        #rack::after {
-            content: ''; position: absolute; bottom: 0; left:0; right:0; height: 5px;
-            background: var(--wood-dark); border-radius: 0 0 4px 4px;
-            box-shadow: inset 0 -1px 2px rgba(0,0,0,0.5);
-        }
-        
-        .hand-slot {
-            height: 90%; aspect-ratio: 1/1;
-            display: flex; align-items: flex-end; /* Steine liegen unten in der Rille */
-            justify-content: center;
-            cursor: pointer; transition: transform 0.2s;
-            z-index: 2; /* Über dem Rand */
-        }
-        /* Wenn ausgewählt, schwebt der Stein über dem Bänkchen */
+        #rack::after { content: ''; position: absolute; bottom: 0; left:0; right:0; height: 5px; background: var(--wood-dark); border-radius: 0 0 4px 4px; box-shadow: inset 0 -1px 2px rgba(0,0,0,0.5); }
+        .hand-slot { height: 90%; aspect-ratio: 1/1; display: flex; align-items: flex-end; justify-content: center; cursor: pointer; transition: transform 0.2s; z-index: 2; }
         .hand-slot.selected { transform: translateY(-15px); }
 
-        /* NEU: Edle Buttons (Pillenform) */
         #controls { display: flex; justify-content: center; gap: 20px; height: 50px; }
-        
         button { 
-            flex: 1; max-width: 180px;
-            font-size: 1rem; font-family: 'Roboto', sans-serif;
-            border: none; border-radius: 50px; /* Pillenform */
-            font-weight: bold; text-transform: uppercase; letter-spacing: 1px; cursor: pointer;
-            touch-action: manipulation;
-            transition: all 0.2s;
-            color: white;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            position: relative; overflow: hidden;
+            flex: 1; max-width: 180px; font-size: 1rem; font-family: 'Roboto', sans-serif;
+            border: none; border-radius: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; cursor: pointer;
+            touch-action: manipulation; transition: all 0.2s; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2); position: relative; overflow: hidden;
         }
-        /* Glanzeffekt auf Buttons */
-        button::after {
-            content: ''; position: absolute; top:0; left:0; width: 100%; height: 50%;
-            background: linear-gradient(to bottom, rgba(255,255,255,0.3), transparent);
-        }
-
+        button::after { content: ''; position: absolute; top:0; left:0; width: 100%; height: 50%; background: linear-gradient(to bottom, rgba(255,255,255,0.3), transparent); }
+        
         .btn-submit { background: linear-gradient(to bottom, #2ecc71, #27ae60); }
         .btn-submit:active { transform: translateY(2px); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-        
         .btn-reset { background: linear-gradient(to bottom, #e74c3c, #c0392b); }
         .btn-reset:active { transform: translateY(2px); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+
+        /* Deaktivierte Buttons */
+        button:disabled {
+            background: #95a5a6; /* Grau */
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none;
+            opacity: 0.6;
+        }
     </style>
 </head>
 <body>
@@ -204,8 +133,8 @@
     <div id="ui-container">
         <div id="rack"></div>
         <div id="controls">
-            <button class="btn-reset" onclick="resetTurn()">Zurück</button>
-            <button class="btn-submit" onclick="submitTurn()">Legen</button>
+            <button class="btn-reset" id="btn-reset" onclick="resetTurn()">Zurück</button>
+            <button class="btn-submit" id="btn-submit" onclick="submitTurn()">Legen</button>
         </div>
     </div>
 
@@ -215,11 +144,16 @@
         const boardElement = document.getElementById('game-board');
         const rackElement = document.getElementById('rack');
         const statusElement = document.getElementById('status');
+        const btnSubmit = document.getElementById('btn-submit');
+        const btnReset = document.getElementById('btn-reset');
         
         let selectedTile = null; 
         let myHand = []; 
         let currentBoard = Array(225).fill(null);
         let currentTurnMoves = []; 
+        
+        let myPlayerIndex = -1;
+        let activePlayerIndex = 0; // Wer ist dran?
 
         const LETTER_SCORES = {
             "A": 1, "B": 3, "C": 4, "D": 1, "E": 1, "F": 4, "G": 2, "H": 2, 
@@ -263,6 +197,9 @@
 
             cell.dataset.index = i;
             cell.addEventListener('click', () => {
+                // Nur klicken, wenn man dran ist!
+                if (myPlayerIndex !== activePlayerIndex) return;
+
                 const isOccupiedServer = currentBoard[i] !== null;
                 const isOccupiedLocal = currentTurnMoves.find(m => m.index === i);
                 if (!isOccupiedServer && !isOccupiedLocal && selectedTile) {
@@ -284,6 +221,7 @@
                 slot.classList.add('hand-slot');
                 slot.innerHTML = createTileHTML(letter);
                 slot.addEventListener('click', () => {
+                    if (myPlayerIndex !== activePlayerIndex) return; // Nicht dran
                     document.querySelectorAll('.hand-slot').forEach(t => t.classList.remove('selected'));
                     slot.classList.add('selected');
                     selectedTile = { letter: letter, handIndex: idx };
@@ -325,15 +263,42 @@
             });
         }
 
-        socket.on('player-assignment', (data) => {
+        function updateTurnState() {
             const p1 = document.getElementById('p1-score');
             const p2 = document.getElementById('p2-score');
-            // Reset
-            p1.classList.remove('active'); p2.classList.remove('active');
-            // Set active
-            if(data.playerIndex === 0) p1.classList.add('active');
-            if(data.playerIndex === 1) p2.classList.add('active');
-            statusElement.innerText = `Du bist P${data.playerIndex + 1}`;
+            
+            // Scoreboard Highlights
+            p1.classList.remove('active-turn');
+            p2.classList.remove('active-turn');
+            if(activePlayerIndex === 0) p1.classList.add('active-turn');
+            if(activePlayerIndex === 1) p2.classList.add('active-turn');
+
+            // Bin ICH dran?
+            const isMyTurn = (myPlayerIndex === activePlayerIndex);
+            
+            if (isMyTurn) {
+                statusElement.innerText = "DU BIST DRAN";
+                statusElement.style.color = "#2ecc71"; // Grün
+                btnSubmit.disabled = false;
+                btnReset.disabled = false;
+                rackElement.style.opacity = "1";
+            } else {
+                statusElement.innerText = "GEGNER IST DRAN";
+                statusElement.style.color = "#e74c3c"; // Rot
+                btnSubmit.disabled = true;
+                btnReset.disabled = true;
+                rackElement.style.opacity = "0.5"; // Hand leicht ausblenden
+            }
+        }
+
+        socket.on('player-assignment', (data) => {
+            myPlayerIndex = data.playerIndex;
+            // Wir aktualisieren hier noch nicht den Turn, warten auf 'update-turn'
+        });
+
+        socket.on('update-turn', (idx) => {
+            activePlayerIndex = idx;
+            updateTurnState();
         });
 
         socket.on('update-hand', (newHand) => { myHand = newHand; renderHand(); });
@@ -347,8 +312,7 @@
         socket.on('move-error', (msg) => {
             const oldT = statusElement.innerText;
             statusElement.innerText = "⚠️ " + msg;
-            statusElement.style.color = "#e74c3c";
-            setTimeout(() => { statusElement.innerText = oldT; statusElement.style.color = "var(--ui-gold)"; }, 2500);
+            setTimeout(() => { updateTurnState(); }, 2500);
             resetTurn(); 
         });
     </script>
