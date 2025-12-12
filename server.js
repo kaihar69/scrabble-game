@@ -36,7 +36,7 @@ const LETTER_SCORES = {
     "J": 6, "K": 4, "L": 2, "M": 3, "N": 1, "O": 2, "P": 4, "Q": 10, "R": 1, 
     "S": 1, "T": 1, "U": 1, "V": 6, "W": 3, "X": 8, "Y": 10, "Z": 3,
     "Ä": 6, "Ö": 8, "Ü": 6,
-    "*": 0 // Joker hat 0 Punkte
+    "*": 0 
 };
 
 const INITIAL_BAG_TEMPLATE = [];
@@ -49,9 +49,12 @@ const distribution = [
     { l: 'W', c: 1 }, { l: 'Z', c: 1 }, { l: 'J', c: 1 }, { l: 'Q', c: 1 }, 
     { l: 'X', c: 1 }, { l: 'Y', c: 1 },
     { l: 'Ä', c: 1 }, { l: 'Ö', c: 1 }, { l: 'Ü', c: 1 },
-    { l: '*', c: 2 } // 2 Joker
+    { l: '*', c: 2 } 
 ];
 distribution.forEach(item => { for(let i=0; i<item.c; i++) INITIAL_BAG_TEMPLATE.push(item.l); });
+
+// KONTROLLE: Zählen für den Chef
+console.log(`[SYSTEM] Steine im Spiel: ${INITIAL_BAG_TEMPLATE.length} (Sollte 102 sein)`);
 
 // --- HILFSFUNKTIONEN ---
 function shuffle(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } return array; }
@@ -71,15 +74,12 @@ function getMultipliers(index) {
     return { wm: 1, lm: 1 };
 }
 
-// Berechnet Punkte. Board enthält jetzt Objekte {l, v}.
 function calculateMoveScore(moves, board) {
     let totalScore = 0; 
     const newIndices = moves.map(m => m.index); 
     let tempBoard = [...board];
     
-    // Lege die neuen Steine virtuell aufs Brett
     moves.forEach(m => {
-        // Ein Joker hat 0 Punkte (v: 0), sonst Standardwert
         const val = m.isJoker ? 0 : (LETTER_SCORES[m.letter] || 0);
         tempBoard[m.index] = { l: m.letter, v: val };
     });
@@ -88,7 +88,6 @@ function calculateMoveScore(moves, board) {
     
     function scoreWordAt(startIndex, scanHorizontal) {
         let currentIdx = startIndex; const step = scanHorizontal ? 1 : 15;
-        // Rückwärts zum Wortanfang
         while(true) {
             const prev = currentIdx - step;
             if (scanHorizontal && Math.floor(prev/15) !== Math.floor(currentIdx/15)) break;
@@ -96,21 +95,14 @@ function calculateMoveScore(moves, board) {
             if (tempBoard[prev]) currentIdx = prev; else break;
         }
         let wordScore = 0; let wordMultiplier = 1; let lettersCount = 0;
-        // Vorwärts scannen
         while(true) {
             if (currentIdx >= 225) break;
             if (scanHorizontal && Math.floor(currentIdx/15) !== Math.floor(startIndex/15) && currentIdx !== startIndex) break;
+            const cellData = tempBoard[currentIdx]; if (!cellData) break;
             
-            const cellData = tempBoard[currentIdx]; // Ist jetzt ein Objekt {l, v}
-            if (!cellData) break;
-            
-            let val = cellData.v; // Wert aus dem Objekt holen (0 bei Joker)
-
-            // Multiplikatoren gelten nur für neu gelegte Steine
+            let val = cellData.v;
             if (newIndices.includes(currentIdx)) {
-                const m = getMultipliers(currentIdx); 
-                val *= m.lm; 
-                wordMultiplier *= m.wm;
+                const m = getMultipliers(currentIdx); val *= m.lm; wordMultiplier *= m.wm;
             }
             wordScore += val; lettersCount++; currentIdx += step;
         }
@@ -154,7 +146,6 @@ function validateGeometry(moves, board, isFirstMove) {
         indices.forEach(idx => { 
             directions.forEach(dir => { 
                 const n = idx + dir; 
-                // board[n] ist jetzt ein Objekt oder null
                 if (n >= 0 && n < 225 && board[n] !== null && !indices.includes(n)) isConnected = true; 
             }); 
         });
@@ -165,9 +156,7 @@ function validateGeometry(moves, board, isFirstMove) {
 
 function validateDictionary(moves, board) {
     let tempBoard = [...board]; 
-    // Neue Steine aufs temporäre Board
-    moves.forEach(m => tempBoard[m.index] = { l: m.letter }); // v ist egal für dictionary
-
+    moves.forEach(m => tempBoard[m.index] = { l: m.letter }); 
     const newIndices = moves.map(m => m.index); let wordsFound = new Set();
     
     function getWordAt(index, isHorizontal) {
@@ -182,12 +171,8 @@ function validateDictionary(moves, board) {
         while(true) {
             if (current >= 225) break;
             if (isHorizontal && Math.floor(current/15) !== Math.floor(start/15) && current !== start) break;
-            
-            const cell = tempBoard[current]; 
-            if (!cell) break;
-            
-            word += cell.l; // .l für den Buchstaben
-            current += step;
+            const cell = tempBoard[current]; if (!cell) break;
+            word += cell.l; current += step;
         }
         return word.length > 1 ? word : null;
     }
@@ -212,26 +197,68 @@ function createGame(roomId) {
         isFirstMove: true, 
         activePlayerIndex: 0, 
         players: [], 
-        lastActivity: Date.now() 
+        lastActivity: Date.now(),
+        isGameOver: false 
     }; 
 }
 
+function calculateHandValue(hand) {
+    let sum = 0;
+    hand.forEach(letter => {
+        // Joker (*) zählen als 0 Minuspunkte
+        const val = LETTER_SCORES[letter] || 0;
+        sum += val;
+    });
+    return sum;
+}
+
+function endGame(game, room, winnerId) {
+    game.isGameOver = true;
+    let penaltySum = 0;
+
+    // 1. Minuspunkte berechnen
+    game.players.forEach(p => {
+        if (p.id !== winnerId) {
+            const penalty = calculateHandValue(p.hand);
+            p.score -= penalty;
+            penaltySum += penalty;
+        }
+    });
+
+    // 2. Pluspunkte für den, der ausgemacht hat (oder gewinnt)
+    if (winnerId) {
+        const winner = game.players.find(p => p.id === winnerId);
+        if (winner) winner.score += penaltySum;
+    }
+
+    // Sortieren nach Score
+    const rankedPlayers = [...game.players].sort((a, b) => b.score - a.score);
+
+    io.to(room).emit('update-game-state', { 
+        board: game.board, 
+        players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id, isBot: p.isBot })), 
+        activePlayerIndex: -1, // Kein aktiver Spieler mehr
+        bagCount: game.tileBag.length 
+    });
+
+    io.to(room).emit('game-over', { rankedPlayers });
+}
+
 function triggerBotTurn(room) {
-    if (!games[room]) return; const game = games[room]; const player = game.players[game.activePlayerIndex];
+    if (!games[room]) return; const game = games[room]; 
+    if (game.isGameOver) return;
+    const player = game.players[game.activePlayerIndex];
     if (!player || !player.isBot) return;
     
     setTimeout(() => {
-        if (!games[room]) return;
+        if (!games[room] || game.isGameOver) return;
         if (game.isFirstMove) {
             const cheatWord = ['C', 'H', 'E', 'F']; const cheatIndices = [112, 113, 114, 115];
             const moves = []; 
             cheatWord.forEach((char, i) => moves.push({ index: cheatIndices[i], letter: char, isJoker: false }));
-            
-            // Bot hat keine echten Steine genommen, wir simulieren nur
             const points = calculateMoveScore(moves, game.board); player.score += points;
             moves.forEach(move => { 
                 game.board[move.index] = { l: move.letter, v: LETTER_SCORES[move.letter] }; 
-                // Bot Hand Management ist hier vereinfacht
                 if(player.hand.length > 0) player.hand.pop(); 
             });
             const newTiles = drawTiles(game.tileBag, moves.length); player.hand.push(...newTiles); game.isFirstMove = false;
@@ -250,6 +277,19 @@ function triggerBotTurn(room) {
 
 function finalizeTurn(game, room, socket) {
     if (game.players.length === 0) return;
+    
+    // --- GAME OVER CHECK ---
+    // Wir prüfen den Spieler, der gerade dran war (Index ist noch nicht weitergeschaltet)
+    const currentPlayer = game.players[game.activePlayerIndex];
+    
+    // Bedingung: Beutel leer UND Hand leer
+    if (game.tileBag.length === 0 && currentPlayer.hand.length === 0) {
+        io.to(room).emit('game-msg', `SPIELENDE! ${currentPlayer.name} hat keine Steine mehr.`);
+        endGame(game, room, currentPlayer.id);
+        return;
+    }
+    // Optional: Wenn alle 6x hintereinander passen (hier vereinfacht weggelassen)
+
     game.activePlayerIndex = (game.activePlayerIndex + 1) % game.players.length;
     game.lastActivity = Date.now();
     
@@ -324,15 +364,13 @@ io.on('connection', (socket) => {
     });
 
     socket.on('action-place', (moves) => {
-        // moves ist jetzt: [{index, letter, isJoker}, ...]
         const room = socket.data.roomId; if (!room || !games[room]) return; const game = games[room];
+        if (game.isGameOver) return;
         const pIndex = game.players.findIndex(p => p.id === socket.id && game.activePlayerIndex === game.players.indexOf(p));
         if (pIndex !== game.activePlayerIndex) return; const player = game.players[pIndex];
         
-        // Hand prüfen: Achtung, der "letter" im Move kann 'A' sein, aber in der Hand ist es ein Joker '*'
         let tempHand = [...player.hand]; let hasTiles = true;
         for (let move of moves) { 
-            // Wenn der Move ein Joker ist, suchen wir '*' in der Hand, sonst den Buchstaben
             const letterToFind = move.isJoker ? '*' : move.letter;
             const idx = tempHand.indexOf(letterToFind); 
             if (idx === -1) hasTiles = false; else tempHand.splice(idx, 1); 
@@ -345,11 +383,8 @@ io.on('connection', (socket) => {
         const points = calculateMoveScore(moves, game.board); player.score += points;
         
         moves.forEach(move => { 
-            // Aufs Board speichern wir jetzt Objekte {l: 'A', v: 0} für Joker
             const val = move.isJoker ? 0 : LETTER_SCORES[move.letter];
             game.board[move.index] = { l: move.letter, v: val };
-            
-            // Aus der Hand entfernen
             const letterToRemove = move.isJoker ? '*' : move.letter;
             const handIndex = player.hand.indexOf(letterToRemove); 
             if (handIndex !== -1) player.hand.splice(handIndex, 1); 
@@ -363,6 +398,7 @@ io.on('connection', (socket) => {
 
     socket.on('action-swap', (letters) => {
         const room = socket.data.roomId; if (!room || !games[room]) return; const game = games[room];
+        if (game.isGameOver) return;
         const pIndex = game.players.findIndex(p => p.id === socket.id && game.activePlayerIndex === game.players.indexOf(p));
         if (pIndex !== game.activePlayerIndex) return; const player = game.players[pIndex];
         if (game.tileBag.length < letters.length) { socket.emit('error-msg', "Beutel fast leer!"); return; }
@@ -381,6 +417,7 @@ io.on('connection', (socket) => {
 
     socket.on('action-pass', () => {
         const room = socket.data.roomId; if (!room || !games[room]) return; const game = games[room];
+        if (game.isGameOver) return;
         const pIndex = game.players.findIndex(p => p.id === socket.id && game.activePlayerIndex === game.players.indexOf(p));
         if (pIndex !== game.activePlayerIndex) return;
         io.to(room).emit('game-msg', `${game.players[pIndex].name} passt.`);
