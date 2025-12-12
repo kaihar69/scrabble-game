@@ -8,7 +8,7 @@
     <style>
         :root {
             --bg-color: #eaddcf; 
-            --bg-pattern: #dccaba; /* KORRIGIERT */
+            --bg-pattern: #dccaba;
             --board-border: #4e342e; --grid-gap: #111; --field-green: #2e7d32; 
             --tile-color: #f3e5ab; --tile-text: #2c3e50;
             --ui-dark: #2c3e50; --ui-gold: #d4af37; 
@@ -26,7 +26,6 @@
             color: var(--ui-dark); margin: 0; padding: 0;
             height: 100dvh; width: 100vw; overflow: hidden;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            /* Safe area für iOS */
             padding-bottom: env(safe-area-inset-bottom);
         }
 
@@ -45,66 +44,26 @@
         .inp { padding: 12px; font-size: 1.1rem; border: 2px solid var(--wood-light); border-radius: 5px; text-align: center; font-weight: bold; }
         
         .login-buttons { display: flex; gap: 10px; }
-        
-        #btn-start {
-            flex: 2; padding: 15px; font-size: 1.1rem; font-weight: bold;
-            background: linear-gradient(to bottom, #27ae60, #219150);
-            color: white; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase;
-        }
-        #btn-training {
-            flex: 1; padding: 15px; font-size: 0.9rem; font-weight: bold;
-            background: linear-gradient(to bottom, #2980b9, #2471a3);
-            color: white; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase;
-        }
+        #btn-start { flex: 2; padding: 15px; background: linear-gradient(to bottom, #27ae60, #219150); color: white; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase; font-weight: bold;}
+        #btn-training { flex: 1; padding: 15px; background: linear-gradient(to bottom, #2980b9, #2471a3); color: white; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase; font-weight: bold;}
 
         /* --- SCOREBOARD --- */
         #scoreboard {
             height: var(--header-h); width: 98%; max-width: 700px;
             display: flex; justify-content: center; align-items: center; gap: 15px;
             background: linear-gradient(to bottom, #34495e, #2c3e50);
-            border-bottom: 3px solid var(--ui-gold);
-            border-radius: 0 0 15px 15px; padding: 0 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3); color: #ecf0f1;
-            flex-shrink: 0; position: relative;
-            z-index: 50; 
+            border-bottom: 3px solid var(--ui-gold); border-radius: 0 0 15px 15px; padding: 0 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); color: #ecf0f1; flex-shrink: 0; position: relative; z-index: 50; 
         }
-        .player-badge {
-            display: flex; flex-direction: column; align-items: center;
-            opacity: 0.5; transition: all 0.3s; width: 22%;
-        }
+        .player-badge { display: flex; flex-direction: column; align-items: center; opacity: 0.5; transition: all 0.3s; width: 22%; }
         .player-badge.active-turn { opacity: 1; color: var(--ui-gold); text-shadow: 0 0 10px rgba(212, 175, 55, 0.5); transform: scale(1.05); font-weight: bold; }
-        .p-name { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 1px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .p-name { font-size: 0.6rem; text-transform: uppercase; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .p-score { font-size: 1.2em; font-weight: 900; font-family: 'Cinzel', serif;}
-        
-        #btn-add-bot {
-            position: absolute; right: 10px; bottom: 5px;
-            padding: 2px 6px; font-size: 0.6rem; background: #34495e; color: #7f8c8d; border: 1px solid #555; border-radius: 4px; cursor: pointer;
-            display: none; 
-        }
-        #btn-add-bot:hover { color: white; border-color: white; }
-
-        #btn-rules {
-            position: absolute; left: 10px; top: 10px;
-            width: 24px; height: 24px; 
-            background: rgba(255,255,255,0.1); 
-            color: #ccc; 
-            border: 1px solid #777; 
-            border-radius: 50%; 
-            cursor: pointer;
-            font-size: 14px; font-weight: bold; font-family: 'Cinzel', serif;
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.2s;
-        }
-        #btn-rules:hover { background: var(--ui-gold); color: var(--ui-dark); border-color: var(--ui-gold); }
-
-        #game-info { display: none !important; }
+        #btn-add-bot { position: absolute; right: 10px; bottom: 5px; padding: 2px 6px; font-size: 0.6rem; background: #34495e; color: #7f8c8d; border: 1px solid #555; border-radius: 4px; cursor: pointer; display: none; }
+        #btn-rules { position: absolute; left: 10px; top: 10px; width: 24px; height: 24px; background: rgba(255,255,255,0.1); color: #ccc; border: 1px solid #777; border-radius: 50%; cursor: pointer; font-size: 14px; font-weight: bold; font-family: 'Cinzel', serif; display: flex; align-items: center; justify-content: center; }
 
         /* --- BOARD --- */
-        #board-wrapper { 
-            flex-grow: 1; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 5px;
-            margin-top: 20px; 
-        }
-        
+        #board-wrapper { flex-grow: 1; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 5px; margin-top: 20px; }
         #game-board { 
             display: grid; grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr);
             gap: 2px; background: var(--grid-gap); border: 5px solid var(--board-border); border-radius: 4px;
@@ -126,10 +85,12 @@
         .tile-letter { font-size: 65%; font-weight: 900; }
         .tile-score { position: absolute; bottom: 8%; right: 10%; font-size: 30%; font-weight: 600; color: #444; }
         .preview .tile-look { opacity: 0.7; box-shadow: none; border: 2px dotted #333; background: #fff; }
+        /* Joker Styling */
+        .tile-look.joker .tile-score { display: none; } 
+        .tile-look.joker { border: 1px solid #d4af37; } /* Gold Rand für Joker auf Brett */
 
         /* --- UI CONTAINER --- */
         #ui-container { height: var(--footer-h); width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 8px; padding: 0 10px 10px 10px; justify-content: flex-end; flex-shrink: 0; }
-        
         #rack { 
             background: linear-gradient(to bottom, var(--wood-dark), var(--wood-light)); padding: 6px 10px 4px 10px;
             border-radius: 8px; display: flex; justify-content: center; gap: 4px; height: 55px; 
@@ -140,77 +101,48 @@
         .hand-slot.swap-selected .tile-look { border: 2px solid #e74c3c; box-shadow: 0 0 10px #e74c3c; }
 
         #controls { display: grid; grid-template-columns: 1fr 1fr 1fr 1.5fr; gap: 8px; height: 45px; }
-        
-        button { 
-            font-size: 0.8rem; font-family: 'Roboto', sans-serif;
-            border: none; border-radius: 8px; font-weight: bold; text-transform: uppercase; cursor: pointer;
-            color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3); box-shadow: 0 3px 0 rgba(0,0,0,0.2);
-            transition: all 0.2s;
-        }
+        button { font-size: 0.8rem; border: none; border-radius: 8px; font-weight: bold; text-transform: uppercase; cursor: pointer; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3); box-shadow: 0 3px 0 rgba(0,0,0,0.2); transition: all 0.2s; }
         button:active { transform: translateY(2px); box-shadow: none; }
         button:disabled { background: #95a5a6; cursor: not-allowed; opacity: 0.5; box-shadow: none; transform: none; }
-
-        .btn-pass { background: #7f8c8d; }
-        .btn-swap { background: #3498db; }
-        .btn-reset { background: #e74c3c; }
-        .btn-submit { background: #27ae60; }
-
+        .btn-pass { background: #7f8c8d; } .btn-swap { background: #3498db; } .btn-reset { background: #e74c3c; } .btn-submit { background: #27ae60; }
         body.swapping .btn-swap { background: #e67e22; animation: pulse 1s infinite; }
         body.swapping .btn-submit { content: 'Tausch bestätigen'; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
 
-        #msg-overlay {
-            position: fixed; top: 120px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.8); color: white; padding: 10px 20px;
-            border-radius: 20px; font-weight: bold; pointer-events: none; opacity: 0; transition: opacity 0.5s; z-index: 99;
-        }
+        #msg-overlay { position: fixed; top: 120px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold; pointer-events: none; opacity: 0; transition: opacity 0.5s; z-index: 99; }
 
-        /* --- RULES OVERLAY --- */
-        #rules-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); backdrop-filter: blur(3px);
-            z-index: 2000; display: none; justify-content: center; align-items: center;
-        }
-        #rules-box {
-            background: var(--bg-color); padding: 25px; border-radius: 8px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.7); border: 3px solid var(--ui-gold);
-            width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto;
-            color: var(--ui-dark); position: relative;
-        }
-        #rules-box h2 { font-family: 'Cinzel', serif; margin-top: 0; color: var(--wood-dark); border-bottom: 2px solid var(--wood-light); padding-bottom: 10px;}
-        #rules-box h3 { margin: 15px 0 5px 0; color: var(--wood-dark); font-size: 1rem;}
-        #rules-box ul { padding-left: 20px; margin: 0; }
-        #rules-box li { margin-bottom: 5px; font-size: 0.9rem; }
-        #btn-close-rules {
-            position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--wood-dark); box-shadow: none;
-        }
+        /* OVERLAYS */
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(3px); z-index: 2000; display: none; justify-content: center; align-items: center; }
+        .overlay-box { background: var(--bg-color); padding: 25px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.7); border: 3px solid var(--ui-gold); width: 90%; max-width: 500px; color: var(--ui-dark); position: relative; max-height: 90vh; overflow-y: auto; }
+        .overlay-box h2 { font-family: 'Cinzel', serif; margin-top: 0; border-bottom: 2px solid var(--wood-light); }
+        .close-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--wood-dark); box-shadow: none; }
+
+        /* Joker Picker */
+        #joker-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; margin-top: 15px; }
+        .joker-btn { background: var(--ui-dark); color: white; padding: 10px; font-weight: bold; border-radius: 4px; box-shadow: none; }
+        .joker-btn:hover { background: var(--ui-gold); color: var(--ui-dark); }
     </style>
 </head>
 <body>
 
-    <div id="rules-overlay">
-        <div id="rules-box">
-            <button id="btn-close-rules" onclick="toggleRules()">×</button>
+    <div id="rules-overlay" class="overlay">
+        <div class="overlay-box" id="rules-box">
+            <button class="close-btn" onclick="toggleRules()">×</button>
             <h2>Spielregeln</h2>
-            
-            <h3>Ziel des Spiels</h3>
-            <p style="font-size:0.9rem">Sammle die meisten Punkte durch das Legen von Wörtern. Nutze die Bonusfelder!</p>
-
-            <h3>So wird gelegt</h3>
+            <p>Joker (★) können jeden Buchstaben annehmen, bringen aber 0 Punkte für sich selbst.</p>
             <ul>
-                <li><strong>Erster Zug:</strong> Muss über den Stern (Mitte) gehen.</li>
-                <li><strong>Weitere Züge:</strong> Müssen an bestehende Wörter andocken.</li>
-                <li>Alle Steine müssen in <strong>einer Linie</strong> liegen.</li>
-                <li><strong>Umlaute:</strong> Ä, Ö, Ü sind erlaubt. ß bitte als SS legen.</li>
+                <li><strong>Start:</strong> Mitte (Stern).</li>
+                <li><strong>Joker:</strong> Wähle den Buchstaben beim Legen.</li>
+                <li><strong>Umlaute:</strong> Ä, Ö, Ü erlaubt. ß als SS.</li>
             </ul>
+        </div>
+    </div>
 
-            <h3>Spezialfelder</h3>
-            <ul>
-                <li><strong style="color:#b71c1c">3W</strong>: Dreifacher Wortwert</li>
-                <li><strong style="color:#f57f17">2W</strong>: Doppelter Wortwert (Startfeld)</li>
-                <li><strong style="color:#0d47a1">3B</strong>: Dreifacher Buchstabenwert</li>
-                <li><strong style="color:#0288d1">2B</strong>: Doppelter Buchstabenwert</li>
-            </ul>
+    <div id="joker-overlay" class="overlay">
+        <div class="overlay-box" style="text-align: center;">
+            <h2>Joker wählen</h2>
+            <p>Welchen Buchstaben soll der Joker ersetzen?</p>
+            <div id="joker-grid"></div>
         </div>
     </div>
 
@@ -258,12 +190,15 @@
         const boardElement = document.getElementById('game-board');
         const btnSubmit = document.getElementById('btn-submit');
         const rulesOverlay = document.getElementById('rules-overlay');
+        const jokerOverlay = document.getElementById('joker-overlay');
+        const jokerGrid = document.getElementById('joker-grid');
         
         let myHand = []; 
         let currentBoard = Array(225).fill(null);
         let currentTurnMoves = []; 
         let swapSelectedLetters = []; 
         let selectedTile = null; 
+        let pendingJokerIndex = null; // Speichert Index für Joker-Platzierung
 
         let myId = null;
         let activePlayerIndex = 0;
@@ -271,8 +206,17 @@
         let isSwapMode = false;
         let isMyTurn = false;
 
-        // Umlaute hinzugefügt für Anzeige-Zwecke
-        const LETTER_SCORES = { "A":1,"B":3,"C":4,"D":1,"E":1,"F":4,"G":2,"H":2,"I":1,"J":6,"K":4,"L":2,"M":3,"N":1,"O":2,"P":4,"Q":10,"R":1,"S":1,"T":1,"U":1,"V":6,"W":3,"X":8,"Y":10,"Z":3,"Ä":6,"Ö":8,"Ü":6 };
+        const LETTER_SCORES = { "A":1,"B":3,"C":4,"D":1,"E":1,"F":4,"G":2,"H":2,"I":1,"J":6,"K":4,"L":2,"M":3,"N":1,"O":2,"P":4,"Q":10,"R":1,"S":1,"T":1,"U":1,"V":6,"W":3,"X":8,"Y":10,"Z":3,"Ä":6,"Ö":8,"Ü":6, "*":0 };
+        const ALL_LETTERS = Object.keys(LETTER_SCORES).filter(l => l !== '*');
+
+        // Initialisiere Joker Grid
+        ALL_LETTERS.forEach(l => {
+            const btn = document.createElement('button');
+            btn.className = 'joker-btn';
+            btn.innerText = l;
+            btn.onclick = () => selectJokerLetter(l);
+            jokerGrid.appendChild(btn);
+        });
 
         document.getElementById('btn-start').addEventListener('click', () => {
             const name = document.getElementById('inp-name').value.trim();
@@ -289,15 +233,23 @@
         });
 
         function toggleRules() {
-            const isVisible = rulesOverlay.style.display === 'flex';
-            rulesOverlay.style.display = isVisible ? 'none' : 'flex';
+            rulesOverlay.style.display = (rulesOverlay.style.display === 'flex') ? 'none' : 'flex';
         }
 
         function addBot() { socket.emit('add-bot'); }
         function showMsg(text) { msgOverlay.innerText = text; msgOverlay.style.opacity = 1; setTimeout(() => msgOverlay.style.opacity = 0, 3000); }
-        function createTileHTML(letter) {
-            const score = LETTER_SCORES[letter] || 0;
-            return `<div class="tile-look"><span class="tile-letter">${letter}</span><span class="tile-score">${score}</span></div>`;
+        
+        function createTileHTML(letter, isJokerDisplay = false, scoreVal = null) {
+            let displayLetter = letter;
+            let displayScore = scoreVal !== null ? scoreVal : (LETTER_SCORES[letter] || 0);
+            
+            if (letter === '*') displayLetter = ''; // Joker in Hand ist leer
+            
+            // Wenn es ein Joker auf dem Board ist (score 0), markieren
+            let classes = "tile-look";
+            if (isJokerDisplay || letter === '*' || scoreVal === 0) classes += " joker";
+
+            return `<div class="${classes}"><span class="tile-letter">${displayLetter}</span><span class="tile-score">${displayScore}</span></div>`;
         }
 
         function getCellType(i) {
@@ -327,16 +279,13 @@
             
             const btnRules = document.getElementById('btn-rules'); 
             const btnBot = document.getElementById('btn-add-bot'); 
-            
             scoreboard.innerHTML = '';
             scoreboard.appendChild(btnRules); 
             badges.forEach(b => scoreboard.appendChild(b)); 
             scoreboard.appendChild(btnBot); 
 
             isMyTurn = (players[activePlayerIndex]?.id === myId);
-            
-            if (players.length < 4 && !players[0].name.includes("ICH")) btnBot.style.display = 'block';
-            else btnBot.style.display = 'none';
+            if (players.length < 4 && !players[0].name.includes("ICH")) btnBot.style.display = 'block'; else btnBot.style.display = 'none';
 
             const btns = document.querySelectorAll('#controls button');
             btns.forEach(b => b.disabled = !isMyTurn);
@@ -351,14 +300,28 @@
             for (let i = 0; i < 225; i++) {
                 const cell = document.createElement('div');
                 cell.className = 'cell ' + getCellType(i);
+                
+                // Hintergrund-Text
                 if(!currentBoard[i]) {
                     const type = getCellType(i); let txt = "";
                     if(type==='tw') txt="3W"; if(type==='dw') txt="2W"; if(type==='tl') txt="3B"; if(type==='dl') txt="2B";
                     if(type==='center') cell.innerHTML = '<span class="star">★</span>'; else if(txt) cell.innerHTML = `<span class="cell-label">${txt}</span>`;
                 }
-                const localMove = currentTurnMoves.find(m => m.index === i);
-                if (currentBoard[i]) { cell.innerHTML = createTileHTML(currentBoard[i]); } 
-                else if (localMove) { cell.innerHTML = createTileHTML(localMove.letter); cell.classList.add('preview'); }
+
+                // Echter Stein auf Board (Objekt {l, v})
+                if (currentBoard[i]) { 
+                    const tileData = currentBoard[i];
+                    cell.innerHTML = createTileHTML(tileData.l, tileData.v === 0, tileData.v); 
+                } 
+                // Vorschau Stein (gerade gelegt)
+                else {
+                    const localMove = currentTurnMoves.find(m => m.index === i);
+                    if (localMove) { 
+                        // Wenn es ein Joker ist, zeige den gewählten Buchstaben, aber als Joker markiert
+                        cell.innerHTML = createTileHTML(localMove.letter, localMove.isJoker, localMove.isJoker ? 0 : null); 
+                        cell.classList.add('preview'); 
+                    }
+                }
                 cell.onclick = () => handleBoardClick(i);
                 boardElement.appendChild(cell);
             }
@@ -369,11 +332,14 @@
             myHand.forEach((letter, idx) => {
                 const slot = document.createElement('div');
                 slot.className = 'hand-slot';
-                const isPlaced = currentTurnMoves.some(m => m.letter === letter && m.handIndex === idx);
+                const isPlaced = currentTurnMoves.some(m => m.handIndex === idx); // Index-basierter Check
+                
                 if (isSwapMode) { if (swapSelectedLetters.includes(idx)) slot.classList.add('swap-selected'); } 
                 else { if (selectedTile && selectedTile.handIndex === idx) slot.classList.add('selected'); }
+                
                 if (!isPlaced) { 
-                    slot.innerHTML = createTileHTML(letter); slot.onclick = () => handleHandClick(letter, idx);
+                    slot.innerHTML = createTileHTML(letter); 
+                    slot.onclick = () => handleHandClick(letter, idx);
                 }
                 rackElement.appendChild(slot);
             });
@@ -396,11 +362,46 @@
 
         function handleBoardClick(index) {
             if (!isMyTurn || isSwapMode) return;
+            
+            // Rücknahme eines Steins
             const existingMoveIdx = currentTurnMoves.findIndex(m => m.index === index);
-            if (existingMoveIdx !== -1) { currentTurnMoves.splice(existingMoveIdx, 1); selectedTile = null; renderBoard(); renderHand(); return; }
+            if (existingMoveIdx !== -1) { 
+                currentTurnMoves.splice(existingMoveIdx, 1); 
+                selectedTile = null; renderBoard(); renderHand(); return; 
+            }
+            
+            // Legen eines Steins
             if (selectedTile && !currentBoard[index]) {
-                currentTurnMoves.push({ index: index, letter: selectedTile.letter, handIndex: selectedTile.handIndex });
-                selectedTile = null; renderBoard(); renderHand();
+                if (selectedTile.letter === '*') {
+                    // Joker Auswahl triggern
+                    pendingJokerIndex = index;
+                    jokerOverlay.style.display = 'flex';
+                } else {
+                    // Normaler Stein
+                    currentTurnMoves.push({ 
+                        index: index, 
+                        letter: selectedTile.letter, 
+                        handIndex: selectedTile.handIndex,
+                        isJoker: false 
+                    });
+                    selectedTile = null; 
+                    renderBoard(); renderHand();
+                }
+            }
+        }
+
+        function selectJokerLetter(char) {
+            if (pendingJokerIndex !== null && selectedTile) {
+                currentTurnMoves.push({
+                    index: pendingJokerIndex,
+                    letter: char, // Der gewählte Buchstabe (z.B. 'A')
+                    handIndex: selectedTile.handIndex,
+                    isJoker: true // Markierung, dass es eigentlich ein Joker ist
+                });
+                pendingJokerIndex = null;
+                selectedTile = null;
+                jokerOverlay.style.display = 'none';
+                renderBoard(); renderHand();
             }
         }
 
@@ -423,7 +424,8 @@
                 const letters = swapSelectedLetters.map(idx => myHand[idx]); socket.emit('action-swap', letters); resetTurn();
             } else {
                 if (currentTurnMoves.length === 0) return;
-                const movesToSend = currentTurnMoves.map(m => ({ index: m.index, letter: m.letter }));
+                // Datenformat für Server: {index, letter, isJoker}
+                const movesToSend = currentTurnMoves.map(m => ({ index: m.index, letter: m.letter, isJoker: m.isJoker }));
                 socket.emit('action-place', movesToSend);
             }
         }
@@ -433,10 +435,7 @@
             currentTurnMoves = []; isSwapMode = false; document.body.classList.remove('swapping'); updateUI();
         });
         socket.on('update-hand', (hand) => { myHand = hand; renderHand(); });
-        
-        // BUGFIX: Kein harter Reset mehr bei Fehler!
         socket.on('error-msg', (msg) => { showMsg("⚠️ " + msg); });
-        
         socket.on('game-msg', (text) => showMsg(text));
     </script>
 </body>
