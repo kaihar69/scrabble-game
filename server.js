@@ -316,4 +316,119 @@ io.on('connection', (socket) => {
         
         const newPlayer = { id: socket.id, name: name || `P${game.players.length + 1}`, hand: drawTiles(game.tileBag, 7), score: 0, isBot: false };
         game.players.push(newPlayer); socket.data.roomId = room;
-        io.to(room).emit('update-game-state', { board: game.board, players: game.players.map(p => ({ name: p.name, score:
+        io.to(room).emit('update-game-state', { board: game.board, players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id, isBot: p.isBot })), activePlayerIndex: game.activePlayerIndex, bagCount: game.tileBag.length, lastMoveIndices: game.lastMoveIndices });
+        socket.emit('update-hand', newPlayer.hand); triggerBotTurn(room);
+    });
+
+    socket.on('join-training', () => {
+        const room = "TRAINING-" + socket.id; socket.join(room); games[room] = createGame(room); const game = games[room];
+        const p1 = { id: socket.id, name: "Rot (ICH)", hand: drawTiles(game.tileBag, 7), score: 0, isBot: false };
+        const p2 = { id: socket.id, name: "Blau (ICH)", hand: drawTiles(game.tileBag, 7), score: 0, isBot: false };
+        game.players.push(p1); game.players.push(p2); socket.data.roomId = room;
+        io.to(room).emit('update-game-state', { board: game.board, players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id, isBot: p.isBot })), activePlayerIndex: 0, bagCount: game.tileBag.length, lastMoveIndices: [] });
+        socket.emit('update-hand', p1.hand); socket.emit('game-msg', "Training gestartet.");
+    });
+
+    socket.on('add-bot', () => {
+        const room = socket.data.roomId; if (!room || !games[room]) return; const game = games[room]; if (game.players.length >= 4) return;
+        const botName = "Robo " + (Math.floor(Math.random()*100));
+        game.players.push({ id: "BOT-" + Date.now(), name: botName, hand: drawTiles(game.tileBag, 7), score: 0, isBot: true });
+        io.to(room).emit('update-game-state', { board: game.board, players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id, isBot: p.isBot })), activePlayerIndex: game.activePlayerIndex, bagCount: game.tileBag.length, lastMoveIndices: game.lastMoveIndices });
+        io.to(room).emit('game-msg', `${botName} ist beigetreten.`); triggerBotTurn(room);
+    });
+
+    socket.on('leave-game', () => {
+        const room = socket.data.roomId;
+        if (!room || !games[room]) return;
+        const game = games[room];
+        const pIndex = game.players.findIndex(p => p.id === socket.id);
+        if (pIndex === -1) return;
+        const player = game.players[pIndex];
+        
+        if (pIndex < game.activePlayerIndex) { game.activePlayerIndex--; }
+        game.players.splice(pIndex, 1);
+        
+        if (game.players.length > 0) {
+            game.activePlayerIndex = game.activePlayerIndex % game.players.length;
+            io.to(room).emit('update-game-state', { board: game.board, players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id, isBot: p.isBot })), activePlayerIndex: game.activePlayerIndex, bagCount: game.tileBag.length, lastMoveIndices: game.lastMoveIndices });
+            io.to(room).emit('game-msg', `${player.name} hat verlassen.`);
+            triggerBotTurn(room);
+        } else { delete games[room]; }
+    });
+
+    socket.on('action-place', (moves) => {
+        const room = socket.data.roomId; if (!room || !games[room]) return; const game = games[room];
+        if (game.isGameOver) return;
+        const pIndex = game.players.findIndex(p => p.id === socket.id && game.activePlayerIndex === game.players.indexOf(p));
+        if (pIndex !== game.activePlayerIndex) return; const player = game.players[pIndex];
+        
+        let tempHand = [...player.hand]; let hasTiles = true;
+        for (let move of moves) { 
+            const letterToFind = move.isJoker ? '*' : move.letter;
+            const idx = tempHand.indexOf(letterToFind); 
+            if (idx === -1) hasTiles = false; else tempHand.splice(idx, 1); 
+        }
+        if (!hasTiles) return;
+        
+        const geoValid = validateGeometry(moves, game.board, game.isFirstMove); if (!geoValid.valid) { socket.emit('error-msg', geoValid.msg); return; }
+        const dictValid = validateDictionary(moves, game.board); if (!dictValid.valid) { socket.emit('error-msg', dictValid.msg); return; }
+        
+        const points = calculateMoveScore(moves, game.board); player.score += points;
+        
+        // NEU: Speichern welche Steine gelegt wurden
+        game.lastMoveIndices = moves.map(m => m.index);
+
+        moves.forEach(move => { 
+            const val = move.isJoker ? 0 : LETTER_SCORES[move.letter];
+            game.board[move.index] = { l: move.letter, v: val };
+            const letterToRemove = move.isJoker ? '*' : move.letter;
+            const handIndex = player.hand.indexOf(letterToRemove); 
+            if (handIndex !== -1) player.hand.splice(handIndex, 1); 
+        });
+        
+        const newTiles = drawTiles(game.tileBag, moves.length); player.hand.push(...newTiles); game.isFirstMove = false;
+        
+        io.to(room).emit('game-msg', `${player.name} legt (${points} Pkt).`); socket.emit('update-hand', player.hand);
+        finalizeTurn(game, room, socket);
+    });
+
+    socket.on('action-swap', (letters) => {
+        const room = socket.data.roomId; if (!room || !games[room]) return; const game = games[room];
+        if (game.isGameOver) return;
+        const pIndex = game.players.findIndex(p => p.id === socket.id && game.activePlayerIndex === game.players.indexOf(p));
+        if (pIndex !== game.activePlayerIndex) return; const player = game.players[pIndex];
+        if (game.tileBag.length < letters.length) { socket.emit('error-msg', "Beutel fast leer!"); return; }
+        
+        let valid = true; let tempHand = [...player.hand];
+        letters.forEach(l => { const idx = tempHand.indexOf(l); if (idx === -1) valid = false; else tempHand.splice(idx, 1); });
+        if(!valid) return;
+        
+        // NEU: Bei Tausch Markierung löschen
+        game.lastMoveIndices = [];
+
+        letters.forEach(l => game.tileBag.push(l)); shuffle(game.tileBag);
+        letters.forEach(l => { const realIdx = player.hand.indexOf(l); player.hand.splice(realIdx, 1); });
+        const newTiles = drawTiles(game.tileBag, letters.length); player.hand.push(...newTiles);
+        
+        io.to(room).emit('game-msg', `${player.name} tauscht.`); socket.emit('update-hand', player.hand);
+        finalizeTurn(game, room, socket);
+    });
+
+    socket.on('action-pass', () => {
+        const room = socket.data.roomId; if (!room || !games[room]) return; const game = games[room];
+        if (game.isGameOver) return;
+        const pIndex = game.players.findIndex(p => p.id === socket.id && game.activePlayerIndex === game.players.indexOf(p));
+        if (pIndex !== game.activePlayerIndex) return;
+        
+        // NEU: Bei Pass Markierung löschen
+        game.lastMoveIndices = [];
+
+        io.to(room).emit('game-msg', `${game.players[pIndex].name} passt.`);
+        finalizeTurn(game, room, socket);
+    });
+
+    socket.on('disconnect', () => {});
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => { console.log(`Server läuft auf Port ${PORT}`); });
