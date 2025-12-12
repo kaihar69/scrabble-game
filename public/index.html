@@ -225,6 +225,39 @@
         let isSwapMode = false;
         let isMyTurn = false;
 
+        // --- TITLE BLINK LOGIC ---
+        let titleTimer = null;
+        const defaultTitle = "Scrabble Chef";
+
+        function startTitleBlink() {
+            if (titleTimer) return;
+            let tick = false;
+            titleTimer = setInterval(() => {
+                document.title = tick ? "👉 DU BIST DRAN!" : "🔔 Deine Runde!";
+                tick = !tick;
+            }, 1000);
+        }
+
+        function stopTitleBlink(keepActiveMsg = false) {
+            if (titleTimer) {
+                clearInterval(titleTimer);
+                titleTimer = null;
+            }
+            document.title = keepActiveMsg ? "👉 Du bist dran!" : defaultTitle;
+        }
+
+        window.onfocus = () => {
+            // Wenn Fenster fokussiert wird und ich dran bin -> Blinken aus, aber Text bleibt
+            if (isMyTurn) stopTitleBlink(true);
+            else stopTitleBlink(false);
+        };
+
+        window.onblur = () => {
+            // Wenn Fenster verlassen wird und ich dran bin -> Blinken an
+            if (isMyTurn) startTitleBlink();
+        };
+        // -------------------------
+
         const LETTER_SCORES = { "A":1,"B":3,"C":4,"D":1,"E":1,"F":4,"G":2,"H":2,"I":1,"J":6,"K":4,"L":2,"M":3,"N":1,"O":2,"P":4,"Q":10,"R":1,"S":1,"T":1,"U":1,"V":6,"W":3,"X":8,"Y":10,"Z":3,"Ä":6,"Ö":8,"Ü":6, "*":0 };
         const ALL_LETTERS = Object.keys(LETTER_SCORES).filter(l => l !== '*');
 
@@ -296,6 +329,16 @@
             scoreboard.appendChild(btnBot); 
 
             isMyTurn = (players[activePlayerIndex]?.id === myId);
+            
+            // --- BLINK UPDATE ---
+            if (isMyTurn) {
+                if (!document.hasFocus()) startTitleBlink();
+                else document.title = "👉 Du bist dran!";
+            } else {
+                stopTitleBlink(false);
+            }
+            // --------------------
+
             if (players.length < 4 && !players[0].name.includes("ICH")) btnBot.style.display = 'block'; else btnBot.style.display = 'none';
 
             const btns = document.querySelectorAll('#controls button');
@@ -420,8 +463,8 @@
         socket.on('error-msg', (msg) => { showMsg("⚠️ " + msg); });
         socket.on('game-msg', (text) => showMsg(text));
         
-        // --- GAME OVER EVENT ---
         socket.on('game-over', (data) => {
+            stopTitleBlink(false); // Blinken stoppen bei Spielende
             const { rankedPlayers } = data;
             rankingList.innerHTML = '';
             rankedPlayers.forEach((p, index) => {
