@@ -68,8 +68,23 @@
         .p-name { font-size: 0.6rem; text-transform: uppercase; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .p-score { font-size: 1.2em; font-weight: 900; font-family: 'Cinzel', serif;}
         
+        /* Buttons im Header */
         #btn-add-bot { position: absolute; right: 10px; bottom: 15px; padding: 2px 6px; font-size: 0.6rem; background: #34495e; color: #7f8c8d; border: 1px solid #555; border-radius: 4px; cursor: pointer; display: none; }
-        #btn-rules { position: absolute; left: 10px; top: 10px; width: 24px; height: 24px; background: rgba(255,255,255,0.1); color: #ccc; border: 1px solid #777; border-radius: 50%; cursor: pointer; font-size: 14px; font-weight: bold; font-family: 'Cinzel', serif; display: flex; align-items: center; justify-content: center; }
+        
+        #btn-rules { 
+            position: absolute; left: 10px; top: 10px; width: 24px; height: 24px; 
+            background: rgba(255,255,255,0.1); color: #ccc; border: 1px solid #777; border-radius: 50%; 
+            cursor: pointer; font-size: 14px; font-weight: bold; font-family: 'Cinzel', serif; 
+            display: flex; align-items: center; justify-content: center; 
+        }
+
+        /* NEU: Musik Button (oben rechts) */
+        #btn-music { 
+            position: absolute; right: 10px; top: 10px; width: 24px; height: 24px; 
+            background: rgba(255,255,255,0.1); color: #ccc; border: 1px solid #777; border-radius: 50%; 
+            cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; 
+        }
+        #btn-music:hover { background: var(--ui-gold); color: var(--ui-dark); }
 
         /* --- BOARD --- */
         #board-wrapper { flex-grow: 1; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 5px; margin-top: 20px; }
@@ -97,12 +112,7 @@
             box-shadow: 1px 1px 3px rgba(0,0,0,0.4);
             display: flex; justify-content: center; align-items: center; position: relative; z-index: 10;
         }
-        /* NEU: Letzter Zug Highlight */
-        .tile-look.last-move {
-            border: 2px solid #2980b9; 
-            box-shadow: 0 0 8px #3498db, inset 0 0 5px #3498db;
-        }
-
+        .tile-look.last-move { border: 2px solid #2980b9; box-shadow: 0 0 8px #3498db, inset 0 0 5px #3498db; }
         .tile-letter { font-size: 65%; font-weight: 900; }
         .tile-score { position: absolute; bottom: 8%; right: 10%; font-size: 30%; font-weight: 600; color: #444; }
         .preview .tile-look { opacity: 0.7; box-shadow: none; border: 2px dotted #333; background: #fff; }
@@ -152,6 +162,12 @@
 </head>
 <body>
 
+    <audio id="snd-bgm" src="sounds/bgm.mp3" loop></audio>
+    <audio id="snd-plop" src="sounds/plop.mp3"></audio>
+    <audio id="snd-error" src="sounds/error.mp3"></audio>
+    <audio id="snd-notify" src="sounds/notify.mp3"></audio>
+    <audio id="snd-success" src="sounds/success.mp3"></audio>
+
     <div id="rules-overlay" class="overlay">
         <div class="overlay-box" id="rules-box">
             <button class="close-btn" onclick="toggleRules()">×</button>
@@ -198,6 +214,8 @@
     
     <div id="scoreboard">
         <button id="btn-rules" onclick="toggleRules()">?</button>
+        <button id="btn-music" onclick="toggleMusic()">🔊</button>
+        
         <div id="room-display"></div>
         <button id="btn-add-bot" onclick="addBot()">+ BOT</button>
     </div>
@@ -234,6 +252,42 @@
         const gameOverOverlay = document.getElementById('game-over-overlay');
         const rankingList = document.getElementById('ranking-list');
         const roomDisplay = document.getElementById('room-display'); 
+        const btnMusic = document.getElementById('btn-music');
+
+        // AUDIO
+        const sndBgm = document.getElementById('snd-bgm');
+        const sndPlop = document.getElementById('snd-plop');
+        const sndError = document.getElementById('snd-error');
+        const sndNotify = document.getElementById('snd-notify');
+        const sndSuccess = document.getElementById('snd-success');
+        sndBgm.volume = 0.3; // Leiser Hintergrund
+
+        let isMusicMuted = localStorage.getItem('scrabble-muted') === 'true';
+        updateMusicBtn();
+
+        function toggleMusic() {
+            isMusicMuted = !isMusicMuted;
+            localStorage.setItem('scrabble-muted', isMusicMuted);
+            updateMusicBtn();
+            if(isMusicMuted) sndBgm.pause();
+            else { 
+                // Versuch Musik zu starten (geht nur, wenn User schon interagiert hat)
+                sndBgm.play().catch(e => console.log("Auto-play blocked until interact")); 
+            }
+        }
+
+        function updateMusicBtn() {
+            btnMusic.innerText = isMusicMuted ? "🔇" : "🔊";
+        }
+
+        function playSound(snd) {
+            // SFX immer abspielen, es sei denn wir wollen einen SFX-Mute (hier nur BGM Mute implementiert)
+            // Wenn SFX auch gemutet werden sollen: if(isMusicMuted) return;
+            try {
+                snd.currentTime = 0;
+                snd.play().catch(e => {});
+            } catch(e) {}
+        }
         
         let myHand = []; 
         let currentBoard = Array(225).fill(null);
@@ -241,7 +295,7 @@
         let swapSelectedLetters = []; 
         let selectedTile = null; 
         let pendingJokerIndex = null; 
-        let lastMoveIndices = []; // NEU: Variable für die Indizes des letzten Zuges
+        let lastMoveIndices = []; 
 
         let myId = null;
         let activePlayerIndex = 0;
@@ -262,21 +316,12 @@
         }
 
         function stopTitleBlink(keepActiveMsg = false) {
-            if (titleTimer) {
-                clearInterval(titleTimer);
-                titleTimer = null;
-            }
+            if (titleTimer) { clearInterval(titleTimer); titleTimer = null; }
             document.title = keepActiveMsg ? "👉 Du bist dran!" : defaultTitle;
         }
 
-        window.onfocus = () => {
-            if (isMyTurn) stopTitleBlink(true);
-            else stopTitleBlink(false);
-        };
-
-        window.onblur = () => {
-            if (isMyTurn) startTitleBlink();
-        };
+        window.onfocus = () => { if (isMyTurn) stopTitleBlink(true); else stopTitleBlink(false); };
+        window.onblur = () => { if (isMyTurn) startTitleBlink(); };
 
         const LETTER_SCORES = { "A":1,"B":3,"C":4,"D":1,"E":1,"F":4,"G":2,"H":2,"I":1,"J":6,"K":4,"L":2,"M":3,"N":1,"O":2,"P":4,"Q":10,"R":1,"S":1,"T":1,"U":1,"V":6,"W":3,"X":8,"Y":10,"Z":3,"Ä":6,"Ö":8,"Ü":6, "*":0 };
         const ALL_LETTERS = Object.keys(LETTER_SCORES).filter(l => l !== '*');
@@ -293,6 +338,9 @@
             const name = document.getElementById('inp-name').value.trim();
             const room = document.getElementById('inp-room').value.trim();
             if(name && room) {
+                // Musik starten bei Interaktion
+                if(!isMusicMuted) sndBgm.play().catch(e=>console.log(e));
+                
                 socket.emit('join-game', { name, roomId: room });
                 document.getElementById('login-screen').style.display = 'none';
                 roomDisplay.innerText = room.toUpperCase(); 
@@ -300,6 +348,9 @@
         });
 
         document.getElementById('btn-training').addEventListener('click', () => {
+            // Musik starten bei Interaktion
+            if(!isMusicMuted) sndBgm.play().catch(e=>console.log(e));
+
             socket.emit('join-training');
             document.getElementById('login-screen').style.display = 'none';
             roomDisplay.innerText = "TRAINING"; 
@@ -313,11 +364,9 @@
             let displayLetter = letter;
             let displayScore = scoreVal !== null ? scoreVal : (LETTER_SCORES[letter] || 0);
             if (letter === '*') displayLetter = ''; 
-            
             let classes = "tile-look";
             if (isJokerDisplay || letter === '*' || scoreVal === 0) classes += " joker";
-            if (isLastMove) classes += " last-move"; // NEU: Klasse hinzufügen
-
+            if (isLastMove) classes += " last-move";
             return `<div class="${classes}"><span class="tile-letter">${displayLetter}</span><span class="tile-score">${displayScore}</span></div>`;
         }
 
@@ -350,12 +399,17 @@
             const btnBot = document.getElementById('btn-add-bot'); 
             scoreboard.innerHTML = '';
             scoreboard.appendChild(btnRules); 
+            scoreboard.appendChild(btnMusic); // Musik Button
             scoreboard.appendChild(roomDisplay); 
             badges.forEach(b => scoreboard.appendChild(b)); 
             scoreboard.appendChild(btnBot); 
 
+            const wasMyTurn = isMyTurn;
             isMyTurn = (players[activePlayerIndex]?.id === myId);
             
+            // Notification Sound nur wenn Zug wechselt zu mir
+            if (isMyTurn && !wasMyTurn) playSound(sndNotify);
+
             if (isMyTurn) {
                 if (!document.hasFocus()) startTitleBlink();
                 else document.title = "👉 Du bist dran!";
@@ -383,10 +437,7 @@
                     if(type==='tw') txt="3W"; if(type==='dw') txt="2W"; if(type==='tl') txt="3B"; if(type==='dl') txt="2B";
                     if(type==='center') cell.innerHTML = '<span class="star">★</span>'; else if(txt) cell.innerHTML = `<span class="cell-label">${txt}</span>`;
                 }
-                
-                // NEU: Check ob Stein Teil des letzten Zuges ist
                 const isLastMove = lastMoveIndices.includes(i);
-
                 if (currentBoard[i]) { 
                     const tileData = currentBoard[i];
                     cell.innerHTML = createTileHTML(tileData.l, tileData.v === 0, tileData.v, isLastMove); 
@@ -394,7 +445,6 @@
                 else {
                     const localMove = currentTurnMoves.find(m => m.index === i);
                     if (localMove) { 
-                        // Lokaler Vorschau-Stein ist nie "Last Move" (vom Gegner), sondern mein eigener
                         cell.innerHTML = createTileHTML(localMove.letter, localMove.isJoker, localMove.isJoker ? 0 : null, false); 
                         cell.classList.add('preview'); 
                     }
@@ -421,6 +471,9 @@
         }
 
         function handleHandClick(letter, idx) {
+            // Sound beim Klicken
+            playSound(sndPlop);
+
             if (isSwapMode) {
                 if(!isMyTurn) return; 
                 if (swapSelectedLetters.includes(idx)) swapSelectedLetters = swapSelectedLetters.filter(i => i !== idx); else swapSelectedLetters.push(idx);
@@ -438,11 +491,17 @@
         function handleBoardClick(index) {
             if (!isMyTurn || isSwapMode) return;
             const existingMoveIdx = currentTurnMoves.findIndex(m => m.index === index);
+            
+            // Stein zurücknehmen
             if (existingMoveIdx !== -1) { 
+                playSound(sndPlop);
                 currentTurnMoves.splice(existingMoveIdx, 1); 
                 selectedTile = null; renderBoard(); renderHand(); return; 
             }
+            
+            // Stein legen
             if (selectedTile && !currentBoard[index]) {
+                playSound(sndPlop);
                 if (selectedTile.letter === '*') {
                     pendingJokerIndex = index;
                     jokerOverlay.style.display = 'flex';
@@ -455,6 +514,7 @@
 
         function selectJokerLetter(char) {
             if (pendingJokerIndex !== null && selectedTile) {
+                playSound(sndPlop);
                 currentTurnMoves.push({ index: pendingJokerIndex, letter: char, handIndex: selectedTile.handIndex, isJoker: true });
                 pendingJokerIndex = null; selectedTile = null; jokerOverlay.style.display = 'none'; renderBoard(); renderHand();
             }
@@ -489,14 +549,27 @@
             players = state.players; 
             activePlayerIndex = state.activePlayerIndex; 
             myId = socket.id;
-            lastMoveIndices = state.lastMoveIndices || []; // NEU: Empfangen
+            lastMoveIndices = state.lastMoveIndices || []; 
             currentTurnMoves = []; isSwapMode = false; document.body.classList.remove('swapping'); updateUI();
         });
         socket.on('update-hand', (hand) => { myHand = hand; renderHand(); });
-        socket.on('error-msg', (msg) => { showMsg("⚠️ " + msg); });
-        socket.on('game-msg', (text) => showMsg(text));
+        
+        socket.on('error-msg', (msg) => { 
+            playSound(sndError);
+            showMsg("⚠️ " + msg); 
+        });
+        
+        socket.on('game-msg', (text) => {
+            // Wenn "legt" oder "tauscht" im Text vorkommt, war es ein erfolgreicher Zug
+            // (Wir filtern, um nicht bei jedem kleinen Status-Update zu bimmeln)
+            if (text.includes("legt") || text.includes("tauscht")) {
+                 playSound(sndSuccess);
+            }
+            showMsg(text);
+        });
         
         socket.on('game-over', (data) => {
+            playSound(sndSuccess); // Fanfare am Ende
             stopTitleBlink(false);
             const { rankedPlayers } = data;
             rankingList.innerHTML = '';
