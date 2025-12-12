@@ -68,7 +68,6 @@
         .p-name { font-size: 0.6rem; text-transform: uppercase; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .p-score { font-size: 1.2em; font-weight: 900; font-family: 'Cinzel', serif;}
         
-        /* Buttons im Header */
         #btn-add-bot { position: absolute; right: 10px; bottom: 15px; padding: 2px 6px; font-size: 0.6rem; background: #34495e; color: #7f8c8d; border: 1px solid #555; border-radius: 4px; cursor: pointer; display: none; }
         
         #btn-rules { 
@@ -78,7 +77,6 @@
             display: flex; align-items: center; justify-content: center; 
         }
 
-        /* NEU: Musik Button (oben rechts) */
         #btn-music { 
             position: absolute; right: 10px; top: 10px; width: 24px; height: 24px; 
             background: rgba(255,255,255,0.1); color: #ccc; border: 1px solid #777; border-radius: 50%; 
@@ -158,6 +156,20 @@
         .ranking-item { padding: 8px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; font-size: 1.1rem; }
         .ranking-item:first-child { font-weight: bold; color: #27ae60; font-size: 1.3rem; }
         @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+        /* NEU: Versionsnummer Styling */
+        #version-tag {
+            position: fixed;
+            bottom: 5px;
+            right: 5px;
+            font-size: 0.5rem;
+            font-family: 'Roboto', sans-serif;
+            opacity: 0.4;
+            color: var(--ui-dark);
+            z-index: 5000;
+            pointer-events: none;
+            user-select: none;
+        }
     </style>
 </head>
 <body>
@@ -200,6 +212,8 @@
         </div>
     </div>
 
+    <div id="version-tag">v1.4.0</div>
+
     <div id="login-screen">
         <div id="login-box">
             <h2>Scrabble Chef</h2>
@@ -215,7 +229,6 @@
     <div id="scoreboard">
         <button id="btn-rules" onclick="toggleRules()">?</button>
         <button id="btn-music" onclick="toggleMusic()">🔊</button>
-        
         <div id="room-display"></div>
         <button id="btn-add-bot" onclick="addBot()">+ BOT</button>
     </div>
@@ -260,7 +273,7 @@
         const sndError = document.getElementById('snd-error');
         const sndNotify = document.getElementById('snd-notify');
         const sndSuccess = document.getElementById('snd-success');
-        sndBgm.volume = 0.3; // Leiser Hintergrund
+        sndBgm.volume = 0.3; 
 
         let isMusicMuted = localStorage.getItem('scrabble-muted') === 'true';
         updateMusicBtn();
@@ -271,7 +284,6 @@
             updateMusicBtn();
             if(isMusicMuted) sndBgm.pause();
             else { 
-                // Versuch Musik zu starten (geht nur, wenn User schon interagiert hat)
                 sndBgm.play().catch(e => console.log("Auto-play blocked until interact")); 
             }
         }
@@ -281,8 +293,6 @@
         }
 
         function playSound(snd) {
-            // SFX immer abspielen, es sei denn wir wollen einen SFX-Mute (hier nur BGM Mute implementiert)
-            // Wenn SFX auch gemutet werden sollen: if(isMusicMuted) return;
             try {
                 snd.currentTime = 0;
                 snd.play().catch(e => {});
@@ -338,7 +348,6 @@
             const name = document.getElementById('inp-name').value.trim();
             const room = document.getElementById('inp-room').value.trim();
             if(name && room) {
-                // Musik starten bei Interaktion
                 if(!isMusicMuted) sndBgm.play().catch(e=>console.log(e));
                 
                 socket.emit('join-game', { name, roomId: room });
@@ -348,7 +357,6 @@
         });
 
         document.getElementById('btn-training').addEventListener('click', () => {
-            // Musik starten bei Interaktion
             if(!isMusicMuted) sndBgm.play().catch(e=>console.log(e));
 
             socket.emit('join-training');
@@ -399,7 +407,7 @@
             const btnBot = document.getElementById('btn-add-bot'); 
             scoreboard.innerHTML = '';
             scoreboard.appendChild(btnRules); 
-            scoreboard.appendChild(btnMusic); // Musik Button
+            scoreboard.appendChild(btnMusic); 
             scoreboard.appendChild(roomDisplay); 
             badges.forEach(b => scoreboard.appendChild(b)); 
             scoreboard.appendChild(btnBot); 
@@ -407,7 +415,6 @@
             const wasMyTurn = isMyTurn;
             isMyTurn = (players[activePlayerIndex]?.id === myId);
             
-            // Notification Sound nur wenn Zug wechselt zu mir
             if (isMyTurn && !wasMyTurn) playSound(sndNotify);
 
             if (isMyTurn) {
@@ -471,9 +478,7 @@
         }
 
         function handleHandClick(letter, idx) {
-            // Sound beim Klicken
             playSound(sndPlop);
-
             if (isSwapMode) {
                 if(!isMyTurn) return; 
                 if (swapSelectedLetters.includes(idx)) swapSelectedLetters = swapSelectedLetters.filter(i => i !== idx); else swapSelectedLetters.push(idx);
@@ -491,15 +496,11 @@
         function handleBoardClick(index) {
             if (!isMyTurn || isSwapMode) return;
             const existingMoveIdx = currentTurnMoves.findIndex(m => m.index === index);
-            
-            // Stein zurücknehmen
             if (existingMoveIdx !== -1) { 
                 playSound(sndPlop);
                 currentTurnMoves.splice(existingMoveIdx, 1); 
                 selectedTile = null; renderBoard(); renderHand(); return; 
             }
-            
-            // Stein legen
             if (selectedTile && !currentBoard[index]) {
                 playSound(sndPlop);
                 if (selectedTile.letter === '*') {
@@ -560,8 +561,6 @@
         });
         
         socket.on('game-msg', (text) => {
-            // Wenn "legt" oder "tauscht" im Text vorkommt, war es ein erfolgreicher Zug
-            // (Wir filtern, um nicht bei jedem kleinen Status-Update zu bimmeln)
             if (text.includes("legt") || text.includes("tauscht")) {
                  playSound(sndSuccess);
             }
@@ -569,7 +568,7 @@
         });
         
         socket.on('game-over', (data) => {
-            playSound(sndSuccess); // Fanfare am Ende
+            playSound(sndSuccess);
             stopTitleBlink(false);
             const { rankedPlayers } = data;
             rankingList.innerHTML = '';
