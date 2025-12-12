@@ -50,25 +50,18 @@
         /* --- SCOREBOARD --- */
         #scoreboard {
             height: var(--header-h); width: 98%; max-width: 700px;
-            display: flex; justify-content: center; align-items: flex-end; /* Align bottom damit Raum oben Platz hat */
+            display: flex; justify-content: center; align-items: flex-end; 
             gap: 15px;
             background: linear-gradient(to bottom, #34495e, #2c3e50);
             border-bottom: 3px solid var(--ui-gold); border-radius: 0 0 15px 15px; padding: 0 10px 10px 10px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3); color: #ecf0f1; flex-shrink: 0; position: relative; z-index: 50; 
         }
         
-        /* NEU: Raum Anzeige */
+        /* Raum Anzeige */
         #room-display {
-            position: absolute;
-            top: 5px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-family: 'Cinzel', serif;
-            font-size: 0.8rem;
-            color: var(--ui-gold);
-            letter-spacing: 2px;
-            opacity: 0.8;
-            pointer-events: none;
+            position: absolute; top: 5px; left: 50%; transform: translateX(-50%);
+            font-family: 'Cinzel', serif; font-size: 0.8rem; color: var(--ui-gold);
+            letter-spacing: 2px; opacity: 0.8; pointer-events: none;
         }
 
         .player-badge { display: flex; flex-direction: column; align-items: center; opacity: 0.5; transition: all 0.3s; width: 22%; }
@@ -87,11 +80,18 @@
             width: min(96vw, calc(100dvh - 240px)); height: min(96vw, calc(100dvh - 240px));
             aspect-ratio: 1 / 1; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-        .cell { background: var(--field-green); display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; user-select: none; }
+        .cell { 
+            background: var(--field-green); 
+            display: flex; align-items: center; justify-content: center; 
+            position: relative; cursor: pointer; user-select: none; 
+            /* BUGFIX: Zwingt die Zelle quadratisch zu sein, egal was drin steht */
+            aspect-ratio: 1 / 1; 
+            overflow: hidden;
+        }
         .cell-label { font-size: clamp(6px, 1.5vh, 10px); font-weight: bold; opacity: 0.7; pointer-events: none; }
         .tw { background-color: #b71c1c; .cell-label { color: #fff; } } .dw { background-color: #f57f17; .cell-label { color: #fff; } } 
         .tl { background-color: #0d47a1; .cell-label { color: #fff; } } .dl { background-color: #0288d1; .cell-label { color: #fff; } } 
-        .center { background-color: #f57f17; } .star { font-size: 1.5em; color: #fff; padding-bottom: 5px; }
+        .center { background-color: #f57f17; } .star { font-size: 1.5em; color: #fff; padding-bottom: 5px; line-height: 1; }
         
         .tile-look {
             background: linear-gradient(135deg, #fffdf0 0%, #f3e5ab 100%); color: var(--tile-text);
@@ -194,9 +194,7 @@
     
     <div id="scoreboard">
         <button id="btn-rules" onclick="toggleRules()">?</button>
-        
         <div id="room-display"></div>
-        
         <button id="btn-add-bot" onclick="addBot()">+ BOT</button>
     </div>
 
@@ -231,7 +229,7 @@
         const jokerGrid = document.getElementById('joker-grid');
         const gameOverOverlay = document.getElementById('game-over-overlay');
         const rankingList = document.getElementById('ranking-list');
-        const roomDisplay = document.getElementById('room-display'); // NEU
+        const roomDisplay = document.getElementById('room-display'); 
         
         let myHand = []; 
         let currentBoard = Array(225).fill(null);
@@ -246,7 +244,6 @@
         let isSwapMode = false;
         let isMyTurn = false;
 
-        // --- TITLE BLINK LOGIC ---
         let titleTimer = null;
         const defaultTitle = "Scrabble Chef";
 
@@ -275,7 +272,6 @@
         window.onblur = () => {
             if (isMyTurn) startTitleBlink();
         };
-        // -------------------------
 
         const LETTER_SCORES = { "A":1,"B":3,"C":4,"D":1,"E":1,"F":4,"G":2,"H":2,"I":1,"J":6,"K":4,"L":2,"M":3,"N":1,"O":2,"P":4,"Q":10,"R":1,"S":1,"T":1,"U":1,"V":6,"W":3,"X":8,"Y":10,"Z":3,"Ä":6,"Ö":8,"Ü":6, "*":0 };
         const ALL_LETTERS = Object.keys(LETTER_SCORES).filter(l => l !== '*');
@@ -294,14 +290,14 @@
             if(name && room) {
                 socket.emit('join-game', { name, roomId: room });
                 document.getElementById('login-screen').style.display = 'none';
-                roomDisplay.innerText = room.toUpperCase(); // NEU: Raum anzeigen
+                roomDisplay.innerText = room.toUpperCase(); 
             }
         });
 
         document.getElementById('btn-training').addEventListener('click', () => {
             socket.emit('join-training');
             document.getElementById('login-screen').style.display = 'none';
-            roomDisplay.innerText = "TRAINING"; // NEU: Training anzeigen
+            roomDisplay.innerText = "TRAINING"; 
         });
 
         function toggleRules() { rulesOverlay.style.display = (rulesOverlay.style.display === 'flex') ? 'none' : 'flex'; }
@@ -346,7 +342,7 @@
             const btnBot = document.getElementById('btn-add-bot'); 
             scoreboard.innerHTML = '';
             scoreboard.appendChild(btnRules); 
-            scoreboard.appendChild(roomDisplay); // NEU: Raum wieder einfügen
+            scoreboard.appendChild(roomDisplay); 
             badges.forEach(b => scoreboard.appendChild(b)); 
             scoreboard.appendChild(btnBot); 
 
