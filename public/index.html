@@ -85,9 +85,7 @@
         .tile-letter { font-size: 65%; font-weight: 900; }
         .tile-score { position: absolute; bottom: 8%; right: 10%; font-size: 30%; font-weight: 600; color: #444; }
         .preview .tile-look { opacity: 0.7; box-shadow: none; border: 2px dotted #333; background: #fff; }
-        /* Joker Styling */
-        .tile-look.joker .tile-score { display: none; } 
-        .tile-look.joker { border: 1px solid #d4af37; } /* Gold Rand für Joker auf Brett */
+        .tile-look.joker .tile-score { display: none; } .tile-look.joker { border: 1px solid #d4af37; }
 
         /* --- UI CONTAINER --- */
         #ui-container { height: var(--footer-h); width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 8px; padding: 0 10px 10px 10px; justify-content: flex-end; flex-shrink: 0; }
@@ -121,6 +119,14 @@
         #joker-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; margin-top: 15px; }
         .joker-btn { background: var(--ui-dark); color: white; padding: 10px; font-weight: bold; border-radius: 4px; box-shadow: none; }
         .joker-btn:hover { background: var(--ui-gold); color: var(--ui-dark); }
+
+        /* Game Over Styles */
+        #game-over-box { text-align: center; border-color: #27ae60; background: #fffdf0; }
+        .winner-cup { font-size: 3rem; color: #f1c40f; margin-bottom: 10px; animation: bounce 1s infinite; }
+        .ranking-list { list-style: none; padding: 0; text-align: left; }
+        .ranking-item { padding: 8px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; font-size: 1.1rem; }
+        .ranking-item:first-child { font-weight: bold; color: #27ae60; font-size: 1.3rem; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
     </style>
 </head>
 <body>
@@ -129,11 +135,12 @@
         <div class="overlay-box" id="rules-box">
             <button class="close-btn" onclick="toggleRules()">×</button>
             <h2>Spielregeln</h2>
-            <p>Joker (★) können jeden Buchstaben annehmen, bringen aber 0 Punkte für sich selbst.</p>
+            <p>Joker (★) können jeden Buchstaben annehmen, bringen aber 0 Punkte.</p>
             <ul>
                 <li><strong>Start:</strong> Mitte (Stern).</li>
                 <li><strong>Joker:</strong> Wähle den Buchstaben beim Legen.</li>
                 <li><strong>Umlaute:</strong> Ä, Ö, Ü erlaubt. ß als SS.</li>
+                <li><strong>Ende:</strong> Wenn der Beutel leer ist und ein Spieler keine Steine mehr hat.</li>
             </ul>
         </div>
     </div>
@@ -143,6 +150,16 @@
             <h2>Joker wählen</h2>
             <p>Welchen Buchstaben soll der Joker ersetzen?</p>
             <div id="joker-grid"></div>
+        </div>
+    </div>
+
+    <div id="game-over-overlay" class="overlay">
+        <div class="overlay-box" id="game-over-box">
+            <div class="winner-cup">🏆</div>
+            <h2>SPIEL VORBEI!</h2>
+            <p>Endstand nach Verrechnung der Reststeine:</p>
+            <ul id="ranking-list" class="ranking-list"></ul>
+            <button onclick="location.reload()" style="background:#27ae60; margin-top:15px; padding:10px 20px;">Neues Spiel</button>
         </div>
     </div>
 
@@ -192,13 +209,15 @@
         const rulesOverlay = document.getElementById('rules-overlay');
         const jokerOverlay = document.getElementById('joker-overlay');
         const jokerGrid = document.getElementById('joker-grid');
+        const gameOverOverlay = document.getElementById('game-over-overlay');
+        const rankingList = document.getElementById('ranking-list');
         
         let myHand = []; 
         let currentBoard = Array(225).fill(null);
         let currentTurnMoves = []; 
         let swapSelectedLetters = []; 
         let selectedTile = null; 
-        let pendingJokerIndex = null; // Speichert Index für Joker-Platzierung
+        let pendingJokerIndex = null; 
 
         let myId = null;
         let activePlayerIndex = 0;
@@ -209,7 +228,6 @@
         const LETTER_SCORES = { "A":1,"B":3,"C":4,"D":1,"E":1,"F":4,"G":2,"H":2,"I":1,"J":6,"K":4,"L":2,"M":3,"N":1,"O":2,"P":4,"Q":10,"R":1,"S":1,"T":1,"U":1,"V":6,"W":3,"X":8,"Y":10,"Z":3,"Ä":6,"Ö":8,"Ü":6, "*":0 };
         const ALL_LETTERS = Object.keys(LETTER_SCORES).filter(l => l !== '*');
 
-        // Initialisiere Joker Grid
         ALL_LETTERS.forEach(l => {
             const btn = document.createElement('button');
             btn.className = 'joker-btn';
@@ -232,23 +250,16 @@
             document.getElementById('login-screen').style.display = 'none';
         });
 
-        function toggleRules() {
-            rulesOverlay.style.display = (rulesOverlay.style.display === 'flex') ? 'none' : 'flex';
-        }
-
+        function toggleRules() { rulesOverlay.style.display = (rulesOverlay.style.display === 'flex') ? 'none' : 'flex'; }
         function addBot() { socket.emit('add-bot'); }
         function showMsg(text) { msgOverlay.innerText = text; msgOverlay.style.opacity = 1; setTimeout(() => msgOverlay.style.opacity = 0, 3000); }
         
         function createTileHTML(letter, isJokerDisplay = false, scoreVal = null) {
             let displayLetter = letter;
             let displayScore = scoreVal !== null ? scoreVal : (LETTER_SCORES[letter] || 0);
-            
-            if (letter === '*') displayLetter = ''; // Joker in Hand ist leer
-            
-            // Wenn es ein Joker auf dem Board ist (score 0), markieren
+            if (letter === '*') displayLetter = ''; 
             let classes = "tile-look";
             if (isJokerDisplay || letter === '*' || scoreVal === 0) classes += " joker";
-
             return `<div class="${classes}"><span class="tile-letter">${displayLetter}</span><span class="tile-score">${displayScore}</span></div>`;
         }
 
@@ -300,24 +311,18 @@
             for (let i = 0; i < 225; i++) {
                 const cell = document.createElement('div');
                 cell.className = 'cell ' + getCellType(i);
-                
-                // Hintergrund-Text
                 if(!currentBoard[i]) {
                     const type = getCellType(i); let txt = "";
                     if(type==='tw') txt="3W"; if(type==='dw') txt="2W"; if(type==='tl') txt="3B"; if(type==='dl') txt="2B";
                     if(type==='center') cell.innerHTML = '<span class="star">★</span>'; else if(txt) cell.innerHTML = `<span class="cell-label">${txt}</span>`;
                 }
-
-                // Echter Stein auf Board (Objekt {l, v})
                 if (currentBoard[i]) { 
                     const tileData = currentBoard[i];
                     cell.innerHTML = createTileHTML(tileData.l, tileData.v === 0, tileData.v); 
                 } 
-                // Vorschau Stein (gerade gelegt)
                 else {
                     const localMove = currentTurnMoves.find(m => m.index === i);
                     if (localMove) { 
-                        // Wenn es ein Joker ist, zeige den gewählten Buchstaben, aber als Joker markiert
                         cell.innerHTML = createTileHTML(localMove.letter, localMove.isJoker, localMove.isJoker ? 0 : null); 
                         cell.classList.add('preview'); 
                     }
@@ -332,11 +337,9 @@
             myHand.forEach((letter, idx) => {
                 const slot = document.createElement('div');
                 slot.className = 'hand-slot';
-                const isPlaced = currentTurnMoves.some(m => m.handIndex === idx); // Index-basierter Check
-                
+                const isPlaced = currentTurnMoves.some(m => m.handIndex === idx); 
                 if (isSwapMode) { if (swapSelectedLetters.includes(idx)) slot.classList.add('swap-selected'); } 
                 else { if (selectedTile && selectedTile.handIndex === idx) slot.classList.add('selected'); }
-                
                 if (!isPlaced) { 
                     slot.innerHTML = createTileHTML(letter); 
                     slot.onclick = () => handleHandClick(letter, idx);
@@ -362,46 +365,26 @@
 
         function handleBoardClick(index) {
             if (!isMyTurn || isSwapMode) return;
-            
-            // Rücknahme eines Steins
             const existingMoveIdx = currentTurnMoves.findIndex(m => m.index === index);
             if (existingMoveIdx !== -1) { 
                 currentTurnMoves.splice(existingMoveIdx, 1); 
                 selectedTile = null; renderBoard(); renderHand(); return; 
             }
-            
-            // Legen eines Steins
             if (selectedTile && !currentBoard[index]) {
                 if (selectedTile.letter === '*') {
-                    // Joker Auswahl triggern
                     pendingJokerIndex = index;
                     jokerOverlay.style.display = 'flex';
                 } else {
-                    // Normaler Stein
-                    currentTurnMoves.push({ 
-                        index: index, 
-                        letter: selectedTile.letter, 
-                        handIndex: selectedTile.handIndex,
-                        isJoker: false 
-                    });
-                    selectedTile = null; 
-                    renderBoard(); renderHand();
+                    currentTurnMoves.push({ index: index, letter: selectedTile.letter, handIndex: selectedTile.handIndex, isJoker: false });
+                    selectedTile = null; renderBoard(); renderHand();
                 }
             }
         }
 
         function selectJokerLetter(char) {
             if (pendingJokerIndex !== null && selectedTile) {
-                currentTurnMoves.push({
-                    index: pendingJokerIndex,
-                    letter: char, // Der gewählte Buchstabe (z.B. 'A')
-                    handIndex: selectedTile.handIndex,
-                    isJoker: true // Markierung, dass es eigentlich ein Joker ist
-                });
-                pendingJokerIndex = null;
-                selectedTile = null;
-                jokerOverlay.style.display = 'none';
-                renderBoard(); renderHand();
+                currentTurnMoves.push({ index: pendingJokerIndex, letter: char, handIndex: selectedTile.handIndex, isJoker: true });
+                pendingJokerIndex = null; selectedTile = null; jokerOverlay.style.display = 'none'; renderBoard(); renderHand();
             }
         }
 
@@ -424,7 +407,6 @@
                 const letters = swapSelectedLetters.map(idx => myHand[idx]); socket.emit('action-swap', letters); resetTurn();
             } else {
                 if (currentTurnMoves.length === 0) return;
-                // Datenformat für Server: {index, letter, isJoker}
                 const movesToSend = currentTurnMoves.map(m => ({ index: m.index, letter: m.letter, isJoker: m.isJoker }));
                 socket.emit('action-place', movesToSend);
             }
@@ -437,6 +419,19 @@
         socket.on('update-hand', (hand) => { myHand = hand; renderHand(); });
         socket.on('error-msg', (msg) => { showMsg("⚠️ " + msg); });
         socket.on('game-msg', (text) => showMsg(text));
+        
+        // --- GAME OVER EVENT ---
+        socket.on('game-over', (data) => {
+            const { rankedPlayers } = data;
+            rankingList.innerHTML = '';
+            rankedPlayers.forEach((p, index) => {
+                const li = document.createElement('li');
+                li.className = 'ranking-item';
+                li.innerHTML = `<span>${index + 1}. ${p.name}</span><span>${p.score} Pkt</span>`;
+                rankingList.appendChild(li);
+            });
+            gameOverOverlay.style.display = 'flex';
+        });
     </script>
 </body>
 </html>
