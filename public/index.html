@@ -50,16 +50,33 @@
         /* --- SCOREBOARD --- */
         #scoreboard {
             height: var(--header-h); width: 98%; max-width: 700px;
-            display: flex; justify-content: center; align-items: center; gap: 15px;
+            display: flex; justify-content: center; align-items: flex-end; /* Align bottom damit Raum oben Platz hat */
+            gap: 15px;
             background: linear-gradient(to bottom, #34495e, #2c3e50);
-            border-bottom: 3px solid var(--ui-gold); border-radius: 0 0 15px 15px; padding: 0 10px;
+            border-bottom: 3px solid var(--ui-gold); border-radius: 0 0 15px 15px; padding: 0 10px 10px 10px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3); color: #ecf0f1; flex-shrink: 0; position: relative; z-index: 50; 
         }
+        
+        /* NEU: Raum Anzeige */
+        #room-display {
+            position: absolute;
+            top: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Cinzel', serif;
+            font-size: 0.8rem;
+            color: var(--ui-gold);
+            letter-spacing: 2px;
+            opacity: 0.8;
+            pointer-events: none;
+        }
+
         .player-badge { display: flex; flex-direction: column; align-items: center; opacity: 0.5; transition: all 0.3s; width: 22%; }
         .player-badge.active-turn { opacity: 1; color: var(--ui-gold); text-shadow: 0 0 10px rgba(212, 175, 55, 0.5); transform: scale(1.05); font-weight: bold; }
         .p-name { font-size: 0.6rem; text-transform: uppercase; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .p-score { font-size: 1.2em; font-weight: 900; font-family: 'Cinzel', serif;}
-        #btn-add-bot { position: absolute; right: 10px; bottom: 5px; padding: 2px 6px; font-size: 0.6rem; background: #34495e; color: #7f8c8d; border: 1px solid #555; border-radius: 4px; cursor: pointer; display: none; }
+        
+        #btn-add-bot { position: absolute; right: 10px; bottom: 15px; padding: 2px 6px; font-size: 0.6rem; background: #34495e; color: #7f8c8d; border: 1px solid #555; border-radius: 4px; cursor: pointer; display: none; }
         #btn-rules { position: absolute; left: 10px; top: 10px; width: 24px; height: 24px; background: rgba(255,255,255,0.1); color: #ccc; border: 1px solid #777; border-radius: 50%; cursor: pointer; font-size: 14px; font-weight: bold; font-family: 'Cinzel', serif; display: flex; align-items: center; justify-content: center; }
 
         /* --- BOARD --- */
@@ -177,6 +194,9 @@
     
     <div id="scoreboard">
         <button id="btn-rules" onclick="toggleRules()">?</button>
+        
+        <div id="room-display"></div>
+        
         <button id="btn-add-bot" onclick="addBot()">+ BOT</button>
     </div>
 
@@ -211,6 +231,7 @@
         const jokerGrid = document.getElementById('joker-grid');
         const gameOverOverlay = document.getElementById('game-over-overlay');
         const rankingList = document.getElementById('ranking-list');
+        const roomDisplay = document.getElementById('room-display'); // NEU
         
         let myHand = []; 
         let currentBoard = Array(225).fill(null);
@@ -247,13 +268,11 @@
         }
 
         window.onfocus = () => {
-            // Wenn Fenster fokussiert wird und ich dran bin -> Blinken aus, aber Text bleibt
             if (isMyTurn) stopTitleBlink(true);
             else stopTitleBlink(false);
         };
 
         window.onblur = () => {
-            // Wenn Fenster verlassen wird und ich dran bin -> Blinken an
             if (isMyTurn) startTitleBlink();
         };
         // -------------------------
@@ -275,12 +294,14 @@
             if(name && room) {
                 socket.emit('join-game', { name, roomId: room });
                 document.getElementById('login-screen').style.display = 'none';
+                roomDisplay.innerText = room.toUpperCase(); // NEU: Raum anzeigen
             }
         });
 
         document.getElementById('btn-training').addEventListener('click', () => {
             socket.emit('join-training');
             document.getElementById('login-screen').style.display = 'none';
+            roomDisplay.innerText = "TRAINING"; // NEU: Training anzeigen
         });
 
         function toggleRules() { rulesOverlay.style.display = (rulesOverlay.style.display === 'flex') ? 'none' : 'flex'; }
@@ -325,19 +346,18 @@
             const btnBot = document.getElementById('btn-add-bot'); 
             scoreboard.innerHTML = '';
             scoreboard.appendChild(btnRules); 
+            scoreboard.appendChild(roomDisplay); // NEU: Raum wieder einfügen
             badges.forEach(b => scoreboard.appendChild(b)); 
             scoreboard.appendChild(btnBot); 
 
             isMyTurn = (players[activePlayerIndex]?.id === myId);
             
-            // --- BLINK UPDATE ---
             if (isMyTurn) {
                 if (!document.hasFocus()) startTitleBlink();
                 else document.title = "👉 Du bist dran!";
             } else {
                 stopTitleBlink(false);
             }
-            // --------------------
 
             if (players.length < 4 && !players[0].name.includes("ICH")) btnBot.style.display = 'block'; else btnBot.style.display = 'none';
 
@@ -464,7 +484,7 @@
         socket.on('game-msg', (text) => showMsg(text));
         
         socket.on('game-over', (data) => {
-            stopTitleBlink(false); // Blinken stoppen bei Spielende
+            stopTitleBlink(false);
             const { rankedPlayers } = data;
             rankingList.innerHTML = '';
             rankedPlayers.forEach((p, index) => {
