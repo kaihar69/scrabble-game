@@ -1,7 +1,7 @@
 {
   "name": "scrabble-chef-edition",
-  "version": "1.2.0",
-  "description": "Scrabble Game for Chef with Jokers and Umlaute",
+  "version": "1.4.0",
+  "description": "Scrabble Game for Chef with Jokers, Umlaute, Highlights and Audio",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
