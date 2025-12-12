@@ -173,3 +173,341 @@
             <div id="joker-grid"></div>
         </div>
     </div>
+
+    <div id="game-over-overlay" class="overlay">
+        <div class="overlay-box" id="game-over-box">
+            <div class="winner-cup">🏆</div>
+            <h2>SPIEL VORBEI!</h2>
+            <p>Endstand nach Verrechnung der Reststeine:</p>
+            <ul id="ranking-list" class="ranking-list"></ul>
+            <button onclick="location.reload()" style="background:#27ae60; margin-top:15px; padding:10px 20px;">Neues Spiel</button>
+        </div>
+    </div>
+
+    <div id="login-screen">
+        <div id="login-box">
+            <h2>Scrabble Chef</h2>
+            <input type="text" id="inp-room" class="inp" placeholder="Raum (z.B. LOBBY)" value="LOBBY">
+            <input type="text" id="inp-name" class="inp" placeholder="Dein Name" maxlength="10">
+            <div class="login-buttons">
+                <button id="btn-start">Beitreten</button>
+                <button id="btn-training">Training (2P)</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="scoreboard">
+        <button id="btn-rules" onclick="toggleRules()">?</button>
+        <div id="room-display"></div>
+        <button id="btn-add-bot" onclick="addBot()">+ BOT</button>
+    </div>
+
+    <div id="game-info"></div>
+    <div id="msg-overlay"></div>
+
+    <div id="board-wrapper">
+        <div id="game-board"></div>
+    </div>
+
+    <div id="ui-container">
+        <div id="rack"></div>
+        <div id="controls">
+            <button class="btn-pass" id="btn-pass" onclick="actionPass()">Pass</button>
+            <button class="btn-swap" id="btn-swap" onclick="toggleSwapMode()">Tausch</button>
+            <button class="btn-reset" id="btn-reset" onclick="resetTurn()">Reset</button>
+            <button class="btn-submit" id="btn-submit" onclick="submitAction()">LEGEN</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const scoreboard = document.getElementById('scoreboard');
+        const btnAddBot = document.getElementById('btn-add-bot');
+        const msgOverlay = document.getElementById('msg-overlay');
+        const rackElement = document.getElementById('rack');
+        const boardElement = document.getElementById('game-board');
+        const btnSubmit = document.getElementById('btn-submit');
+        const rulesOverlay = document.getElementById('rules-overlay');
+        const jokerOverlay = document.getElementById('joker-overlay');
+        const jokerGrid = document.getElementById('joker-grid');
+        const gameOverOverlay = document.getElementById('game-over-overlay');
+        const rankingList = document.getElementById('ranking-list');
+        const roomDisplay = document.getElementById('room-display'); 
+        
+        let myHand = []; 
+        let currentBoard = Array(225).fill(null);
+        let currentTurnMoves = []; 
+        let swapSelectedLetters = []; 
+        let selectedTile = null; 
+        let pendingJokerIndex = null; 
+        let lastMoveIndices = []; // NEU: Variable für die Indizes des letzten Zuges
+
+        let myId = null;
+        let activePlayerIndex = 0;
+        let players = [];
+        let isSwapMode = false;
+        let isMyTurn = false;
+
+        let titleTimer = null;
+        const defaultTitle = "Scrabble Chef";
+
+        function startTitleBlink() {
+            if (titleTimer) return;
+            let tick = false;
+            titleTimer = setInterval(() => {
+                document.title = tick ? "👉 DU BIST DRAN!" : "🔔 Deine Runde!";
+                tick = !tick;
+            }, 1000);
+        }
+
+        function stopTitleBlink(keepActiveMsg = false) {
+            if (titleTimer) {
+                clearInterval(titleTimer);
+                titleTimer = null;
+            }
+            document.title = keepActiveMsg ? "👉 Du bist dran!" : defaultTitle;
+        }
+
+        window.onfocus = () => {
+            if (isMyTurn) stopTitleBlink(true);
+            else stopTitleBlink(false);
+        };
+
+        window.onblur = () => {
+            if (isMyTurn) startTitleBlink();
+        };
+
+        const LETTER_SCORES = { "A":1,"B":3,"C":4,"D":1,"E":1,"F":4,"G":2,"H":2,"I":1,"J":6,"K":4,"L":2,"M":3,"N":1,"O":2,"P":4,"Q":10,"R":1,"S":1,"T":1,"U":1,"V":6,"W":3,"X":8,"Y":10,"Z":3,"Ä":6,"Ö":8,"Ü":6, "*":0 };
+        const ALL_LETTERS = Object.keys(LETTER_SCORES).filter(l => l !== '*');
+
+        ALL_LETTERS.forEach(l => {
+            const btn = document.createElement('button');
+            btn.className = 'joker-btn';
+            btn.innerText = l;
+            btn.onclick = () => selectJokerLetter(l);
+            jokerGrid.appendChild(btn);
+        });
+
+        document.getElementById('btn-start').addEventListener('click', () => {
+            const name = document.getElementById('inp-name').value.trim();
+            const room = document.getElementById('inp-room').value.trim();
+            if(name && room) {
+                socket.emit('join-game', { name, roomId: room });
+                document.getElementById('login-screen').style.display = 'none';
+                roomDisplay.innerText = room.toUpperCase(); 
+            }
+        });
+
+        document.getElementById('btn-training').addEventListener('click', () => {
+            socket.emit('join-training');
+            document.getElementById('login-screen').style.display = 'none';
+            roomDisplay.innerText = "TRAINING"; 
+        });
+
+        function toggleRules() { rulesOverlay.style.display = (rulesOverlay.style.display === 'flex') ? 'none' : 'flex'; }
+        function addBot() { socket.emit('add-bot'); }
+        function showMsg(text) { msgOverlay.innerText = text; msgOverlay.style.opacity = 1; setTimeout(() => msgOverlay.style.opacity = 0, 3000); }
+        
+        function createTileHTML(letter, isJokerDisplay = false, scoreVal = null, isLastMove = false) {
+            let displayLetter = letter;
+            let displayScore = scoreVal !== null ? scoreVal : (LETTER_SCORES[letter] || 0);
+            if (letter === '*') displayLetter = ''; 
+            
+            let classes = "tile-look";
+            if (isJokerDisplay || letter === '*' || scoreVal === 0) classes += " joker";
+            if (isLastMove) classes += " last-move"; // NEU: Klasse hinzufügen
+
+            return `<div class="${classes}"><span class="tile-letter">${displayLetter}</span><span class="tile-score">${displayScore}</span></div>`;
+        }
+
+        function getCellType(i) {
+            const x = i % 15; const y = Math.floor(i / 15); const k = x+","+y;
+            if (k==="7,7") return "center";
+            if ((x===0||x===7||x===14)&&(y===0||y===7||y===14)&&k!=="7,7") return "tw";
+            if (x===y||x+y===14) { if(x>=1&&x<=4) return "dw"; if(x>=10&&x<=13) return "dw"; }
+            if ((x===5||x===9)&&(y===1||y===5||y===9||y===13)) return "tl";
+            if ((y===5||y===9)&&(x===1||x===5||x===9||x===13)) return "tl";
+            if ((x===3||x===11)&&(y===0||y===7||y===14)) return "dl";
+            if ((y===3||y===11)&&(x===0||x===7||x===14)) return "dl";
+            if ((x===2||x===6||x===8||x===12)&&(y===6||y===8)) return "dl";
+            if ((y===2||y===6||y===8||y===12)&&(x===6||x===8)) return "dl";
+            return "";
+        }
+
+        function updateUI() {
+            const badges = [];
+            players.forEach((p, idx) => {
+                const isActive = idx === activePlayerIndex;
+                const isMe = p.id === myId;
+                const badge = document.createElement('div');
+                badge.className = `player-badge ${isActive ? 'active-turn' : ''}`;
+                badge.innerHTML = `<span class="p-name">${p.name}${isMe?' (DU)':''}</span><span class="p-score">${p.score}</span>`;
+                badges.push(badge);
+            });
+            
+            const btnRules = document.getElementById('btn-rules'); 
+            const btnBot = document.getElementById('btn-add-bot'); 
+            scoreboard.innerHTML = '';
+            scoreboard.appendChild(btnRules); 
+            scoreboard.appendChild(roomDisplay); 
+            badges.forEach(b => scoreboard.appendChild(b)); 
+            scoreboard.appendChild(btnBot); 
+
+            isMyTurn = (players[activePlayerIndex]?.id === myId);
+            
+            if (isMyTurn) {
+                if (!document.hasFocus()) startTitleBlink();
+                else document.title = "👉 Du bist dran!";
+            } else {
+                stopTitleBlink(false);
+            }
+
+            if (players.length < 4 && !players[0].name.includes("ICH")) btnBot.style.display = 'block'; else btnBot.style.display = 'none';
+
+            const btns = document.querySelectorAll('#controls button');
+            btns.forEach(b => b.disabled = !isMyTurn);
+            btnSubmit.innerText = isSwapMode ? "BESTÄTIGEN" : "LEGEN";
+            
+            renderBoard();
+            renderHand();
+        }
+
+        function renderBoard() {
+            boardElement.innerHTML = '';
+            for (let i = 0; i < 225; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell ' + getCellType(i);
+                if(!currentBoard[i]) {
+                    const type = getCellType(i); let txt = "";
+                    if(type==='tw') txt="3W"; if(type==='dw') txt="2W"; if(type==='tl') txt="3B"; if(type==='dl') txt="2B";
+                    if(type==='center') cell.innerHTML = '<span class="star">★</span>'; else if(txt) cell.innerHTML = `<span class="cell-label">${txt}</span>`;
+                }
+                
+                // NEU: Check ob Stein Teil des letzten Zuges ist
+                const isLastMove = lastMoveIndices.includes(i);
+
+                if (currentBoard[i]) { 
+                    const tileData = currentBoard[i];
+                    cell.innerHTML = createTileHTML(tileData.l, tileData.v === 0, tileData.v, isLastMove); 
+                } 
+                else {
+                    const localMove = currentTurnMoves.find(m => m.index === i);
+                    if (localMove) { 
+                        // Lokaler Vorschau-Stein ist nie "Last Move" (vom Gegner), sondern mein eigener
+                        cell.innerHTML = createTileHTML(localMove.letter, localMove.isJoker, localMove.isJoker ? 0 : null, false); 
+                        cell.classList.add('preview'); 
+                    }
+                }
+                cell.onclick = () => handleBoardClick(i);
+                boardElement.appendChild(cell);
+            }
+        }
+
+        function renderHand() {
+            rackElement.innerHTML = '';
+            myHand.forEach((letter, idx) => {
+                const slot = document.createElement('div');
+                slot.className = 'hand-slot';
+                const isPlaced = currentTurnMoves.some(m => m.handIndex === idx); 
+                if (isSwapMode) { if (swapSelectedLetters.includes(idx)) slot.classList.add('swap-selected'); } 
+                else { if (selectedTile && selectedTile.handIndex === idx) slot.classList.add('selected'); }
+                if (!isPlaced) { 
+                    slot.innerHTML = createTileHTML(letter); 
+                    slot.onclick = () => handleHandClick(letter, idx);
+                }
+                rackElement.appendChild(slot);
+            });
+        }
+
+        function handleHandClick(letter, idx) {
+            if (isSwapMode) {
+                if(!isMyTurn) return; 
+                if (swapSelectedLetters.includes(idx)) swapSelectedLetters = swapSelectedLetters.filter(i => i !== idx); else swapSelectedLetters.push(idx);
+                renderHand(); return;
+            }
+            if (selectedTile) {
+                if (selectedTile.handIndex !== idx) {
+                    const temp = myHand[selectedTile.handIndex]; myHand[selectedTile.handIndex] = myHand[idx]; myHand[idx] = temp;
+                    selectedTile = null; renderHand(); return; 
+                } else selectedTile = null;
+            } else selectedTile = { letter, handIndex: idx };
+            renderHand();
+        }
+
+        function handleBoardClick(index) {
+            if (!isMyTurn || isSwapMode) return;
+            const existingMoveIdx = currentTurnMoves.findIndex(m => m.index === index);
+            if (existingMoveIdx !== -1) { 
+                currentTurnMoves.splice(existingMoveIdx, 1); 
+                selectedTile = null; renderBoard(); renderHand(); return; 
+            }
+            if (selectedTile && !currentBoard[index]) {
+                if (selectedTile.letter === '*') {
+                    pendingJokerIndex = index;
+                    jokerOverlay.style.display = 'flex';
+                } else {
+                    currentTurnMoves.push({ index: index, letter: selectedTile.letter, handIndex: selectedTile.handIndex, isJoker: false });
+                    selectedTile = null; renderBoard(); renderHand();
+                }
+            }
+        }
+
+        function selectJokerLetter(char) {
+            if (pendingJokerIndex !== null && selectedTile) {
+                currentTurnMoves.push({ index: pendingJokerIndex, letter: char, handIndex: selectedTile.handIndex, isJoker: true });
+                pendingJokerIndex = null; selectedTile = null; jokerOverlay.style.display = 'none'; renderBoard(); renderHand();
+            }
+        }
+
+        function toggleSwapMode() {
+            if (currentTurnMoves.length > 0) resetTurn(); 
+            isSwapMode = !isSwapMode; swapSelectedLetters = [];
+            document.body.classList.toggle('swapping', isSwapMode); updateUI();
+        }
+
+        function resetTurn() {
+            currentTurnMoves = []; selectedTile = null; swapSelectedLetters = [];
+            isSwapMode = false; document.body.classList.remove('swapping'); updateUI();
+        }
+
+        function actionPass() { if(confirm("Passen?")) { resetTurn(); socket.emit('action-pass'); } }
+
+        function submitAction() {
+            if (isSwapMode) {
+                if (swapSelectedLetters.length === 0) return;
+                const letters = swapSelectedLetters.map(idx => myHand[idx]); socket.emit('action-swap', letters); resetTurn();
+            } else {
+                if (currentTurnMoves.length === 0) return;
+                const movesToSend = currentTurnMoves.map(m => ({ index: m.index, letter: m.letter, isJoker: m.isJoker }));
+                socket.emit('action-place', movesToSend);
+            }
+        }
+
+        socket.on('update-game-state', (state) => {
+            currentBoard = state.board; 
+            players = state.players; 
+            activePlayerIndex = state.activePlayerIndex; 
+            myId = socket.id;
+            lastMoveIndices = state.lastMoveIndices || []; // NEU: Empfangen
+            currentTurnMoves = []; isSwapMode = false; document.body.classList.remove('swapping'); updateUI();
+        });
+        socket.on('update-hand', (hand) => { myHand = hand; renderHand(); });
+        socket.on('error-msg', (msg) => { showMsg("⚠️ " + msg); });
+        socket.on('game-msg', (text) => showMsg(text));
+        
+        socket.on('game-over', (data) => {
+            stopTitleBlink(false);
+            const { rankedPlayers } = data;
+            rankingList.innerHTML = '';
+            rankedPlayers.forEach((p, index) => {
+                const li = document.createElement('li');
+                li.className = 'ranking-item';
+                li.innerHTML = `<span>${index + 1}. ${p.name}</span><span>${p.score} Pkt</span>`;
+                rankingList.appendChild(li);
+            });
+            gameOverOverlay.style.display = 'flex';
+        });
+    </script>
+</body>
+</html>
