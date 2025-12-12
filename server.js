@@ -13,7 +13,8 @@ const MAX_IDLE_TIME = 24 * 60 * 60 * 1000;
 const CLEANUP_INTERVAL = 30 * 60 * 1000;
 
 let dictionary = new Set();
-const testWords = ["HALLO", "WELT", "TEST", "CHEF", "HAUS", "MAUS", "BAUM", "SCRABBLE", "SPIEL", "BOT", "JA", "NEIN", "UND", "IST", "DER", "DIE", "DAS", "WORT"];
+// Testwörter inkl. Umlaute für den Fall, dass dictionary.txt fehlt
+const testWords = ["HALLO", "WELT", "TEST", "CHEF", "HAUS", "MAUS", "BAUM", "SCRABBLE", "SPIEL", "BOT", "JA", "NEIN", "UND", "IST", "DER", "DIE", "DAS", "WORT", "ÄPFEL", "ÖL", "ÜBEN"];
 testWords.forEach(w => dictionary.add(w));
 
 try {
@@ -25,28 +26,49 @@ try {
             if(word.length > 1) dictionary.add(word);
         });
         console.log(`Wörterbuch geladen: ${dictionary.size} Wörter.`);
+    } else {
+        console.log("WARNUNG: dictionary.txt nicht gefunden. Nutze nur Testwörter.");
+        console.log("Tipp: Führe 'node setup_dictionary.js' aus.");
     }
 } catch (err) { console.error(err); }
 
-const LETTER_SCORES = { "A": 1, "B": 3, "C": 4, "D": 1, "E": 1, "F": 4, "G": 2, "H": 2, "I": 1, "J": 6, "K": 4, "L": 2, "M": 3, "N": 1, "O": 2, "P": 4, "Q": 10, "R": 1, "S": 1, "T": 1, "U": 1, "V": 6, "W": 3, "X": 8, "Y": 10, "Z": 3 };
+// --- WERTE UND VERTEILUNG (DEUTSCH MIT UMLAUTEN) ---
+const LETTER_SCORES = { 
+    "A": 1, "B": 3, "C": 4, "D": 1, "E": 1, "F": 4, "G": 2, "H": 2, "I": 1, 
+    "J": 6, "K": 4, "L": 2, "M": 3, "N": 1, "O": 2, "P": 4, "Q": 10, "R": 1, 
+    "S": 1, "T": 1, "U": 1, "V": 6, "W": 3, "X": 8, "Y": 10, "Z": 3,
+    "Ä": 6, "Ö": 8, "Ü": 6 
+};
+
 const INITIAL_BAG_TEMPLATE = [];
-const distribution = [{ l: 'E', c: 15 }, { l: 'N', c: 9 }, { l: 'S', c: 7 }, { l: 'I', c: 6 }, { l: 'R', c: 6 }, { l: 'T', c: 6 }, { l: 'U', c: 6 }, { l: 'A', c: 5 }, { l: 'D', c: 4 }, { l: 'H', c: 4 }, { l: 'G', c: 3 }, { l: 'L', c: 3 }, { l: 'O', c: 3 }, { l: 'M', c: 4 }, { l: 'B', c: 2 }, { l: 'W', c: 1 }, { l: 'Z', c: 1 }, { l: 'K', c: 2 }, { l: 'V', c: 1 }, { l: 'P', c: 1 }, { l: 'J', c: 1 }, { l: 'X', c: 1 }, { l: 'Q', c: 1 }, { l: 'Y', c: 1 }];
+const distribution = [
+    { l: 'E', c: 15 }, { l: 'N', c: 9 }, { l: 'S', c: 7 }, { l: 'I', c: 6 }, 
+    { l: 'R', c: 6 }, { l: 'T', c: 6 }, { l: 'U', c: 6 }, { l: 'A', c: 5 }, 
+    { l: 'D', c: 4 }, { l: 'H', c: 4 }, { l: 'G', c: 3 }, { l: 'L', c: 3 }, 
+    { l: 'O', c: 3 }, { l: 'M', c: 4 }, { l: 'B', c: 2 }, { l: 'C', c: 2 }, 
+    { l: 'F', c: 2 }, { l: 'K', c: 2 }, { l: 'P', c: 1 }, { l: 'V', c: 1 }, 
+    { l: 'W', c: 1 }, { l: 'Z', c: 1 }, { l: 'J', c: 1 }, { l: 'Q', c: 1 }, 
+    { l: 'X', c: 1 }, { l: 'Y', c: 1 },
+    { l: 'Ä', c: 1 }, { l: 'Ö', c: 1 }, { l: 'Ü', c: 1 }
+];
 distribution.forEach(item => { for(let i=0; i<item.c; i++) INITIAL_BAG_TEMPLATE.push(item.l); });
 
 // --- HILFSFUNKTIONEN ---
 function shuffle(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } return array; }
 function drawTiles(bag, count) { const drawn = []; for(let i=0; i<count; i++) { if(bag.length > 0) drawn.push(bag.pop()); } return drawn; }
+
 function getMultipliers(index) {
-    const x = index % 15; const y = Math.floor(index / 15); const k = x + "," + y;
-    if (k === "7,7") return { wm: 2, lm: 1 };
-    if ((x===0||x===7||x===14) && (y===0||y===7||y===14)) return { wm: 3, lm: 1 };
-    if ((x===y || x+y===14)) { if(x>=1 && x<=4) return { wm: 2, lm: 1 }; if(x>=10 && x<=13) return { wm: 2, lm: 1 }; }
-    if ((x===5||x===9)&&(y===1||y===5||y===9||y===13)) return { wm: 1, lm: 3 };
-    if ((y===5||y===9)&&(x===1||x===5||x===9||x===13)) return { wm: 1, lm: 3 };
-    if ((x===3||x===11)&&(y===0||y===7||y===14)) return { wm: 1, lm: 2 };
-    if ((y===3||y===11)&&(x===0||x===7||x===14)) return { wm: 1, lm: 2 };
-    if ((x===2||x===6||x===8||x===12) && (y===6||y===8)) return { wm: 1, lm: 2 };
-    if ((y===2||y===6||y===8||y===12) && (x===6||x===8)) return { wm: 1, lm: 2 };
+    const x = index % 15; const y = Math.floor(index / 15); 
+    // Koordinaten-Check für Spezialfelder
+    if (x===7 && y===7) return { wm: 2, lm: 1 }; // Mitte (Stern)
+    if ((x===0||x===7||x===14) && (y===0||y===7||y===14)) return { wm: 3, lm: 1 }; // 3W (Rot)
+    if ((x===y || x+y===14)) { if(x>=1 && x<=4) return { wm: 2, lm: 1 }; if(x>=10 && x<=13) return { wm: 2, lm: 1 }; } // 2W (Rosa)
+    if ((x===5||x===9)&&(y===1||y===5||y===9||y===13)) return { wm: 1, lm: 3 }; // 3B (Dunkelblau)
+    if ((y===5||y===9)&&(x===1||x===5||x===9||x===13)) return { wm: 1, lm: 3 }; // 3B
+    if ((x===3||x===11)&&(y===0||y===7||y===14)) return { wm: 1, lm: 2 }; // 2B (Hellblau)
+    if ((y===3||y===11)&&(x===0||x===7||x===14)) return { wm: 1, lm: 2 }; // 2B
+    if ((x===2||x===6||x===8||x===12) && (y===6||y===8)) return { wm: 1, lm: 2 }; // 2B
+    if ((y===2||y===6||y===8||y===12) && (x===6||x===8)) return { wm: 1, lm: 2 }; // 2B
     return { wm: 1, lm: 1 };
 }
 
@@ -54,8 +76,10 @@ function calculateMoveScore(moves, board) {
     let totalScore = 0; const newIndices = moves.map(m => m.index); let tempBoard = [...board];
     moves.forEach(m => tempBoard[m.index] = m.letter);
     const isHorizontal = moves.length > 1 ? (Math.floor(moves[0].index/15) === Math.floor(moves[1].index/15)) : true;
+    
     function scoreWordAt(startIndex, scanHorizontal) {
         let currentIdx = startIndex; const step = scanHorizontal ? 1 : 15;
+        // Rückwärts suchen zum Wortanfang
         while(true) {
             const prev = currentIdx - step;
             if (scanHorizontal && Math.floor(prev/15) !== Math.floor(currentIdx/15)) break;
@@ -63,10 +87,12 @@ function calculateMoveScore(moves, board) {
             if (tempBoard[prev]) currentIdx = prev; else break;
         }
         let wordScore = 0; let wordMultiplier = 1; let lettersCount = 0;
+        // Vorwärts scannen
         while(true) {
             if (currentIdx >= 225) break;
             if (scanHorizontal && Math.floor(currentIdx/15) !== Math.floor(startIndex/15) && currentIdx !== startIndex) break;
             const letter = tempBoard[currentIdx]; if (!letter) break;
+            
             let val = LETTER_SCORES[letter] || 0;
             if (newIndices.includes(currentIdx)) {
                 const m = getMultipliers(currentIdx); val *= m.lm; wordMultiplier *= m.wm;
@@ -75,11 +101,17 @@ function calculateMoveScore(moves, board) {
         }
         return lettersCount > 1 ? wordScore * wordMultiplier : 0;
     }
+
     let mainScore = scoreWordAt(moves[0].index, isHorizontal);
     if (moves.length === 1) mainScore += scoreWordAt(moves[0].index, !isHorizontal);
     totalScore += mainScore;
+    
+    // Querwörter prüfen
     if (moves.length > 1) { moves.forEach(m => { totalScore += scoreWordAt(m.index, !isHorizontal); }); }
+    
+    // Bingo (alle 7 gelegt)
     if (moves.length === 7) totalScore += 50;
+    
     return totalScore;
 }
 
@@ -87,13 +119,37 @@ function validateGeometry(moves, board, isFirstMove) {
     if (moves.length === 0) return { valid: false };
     const indices = moves.map(m => m.index).sort((a, b) => a - b);
     const coords = indices.map(i => ({ x: i % 15, y: Math.floor(i / 15) }));
-    const allSameX = coords.every(c => c.x === coords[0].x); const allSameY = coords.every(c => c.y === coords[0].y);
-    if (!allSameX && !allSameY) return { valid: false, msg: "Linie einhalten." };
-    if (isFirstMove) { if (!indices.includes(112)) return { valid: false, msg: "Start in der Mitte." }; } 
-    else {
+    
+    const allSameX = coords.every(c => c.x === coords[0].x); 
+    const allSameY = coords.every(c => c.y === coords[0].y);
+    
+    if (!allSameX && !allSameY) return { valid: false, msg: "Wörter müssen in einer Linie liegen." };
+    
+    // Lücken prüfen
+    let step = allSameX ? 15 : 1;
+    for(let i = 0; i < indices.length - 1; i++) {
+        let curr = indices[i];
+        let next = indices[i+1];
+        if(next - curr !== step) {
+            // Wenn Lücke, müssen Felder dazwischen belegt sein
+            for(let k = curr + step; k < next; k += step) {
+                if(!board[k]) return { valid: false, msg: "Keine Lücken erlaubt." };
+            }
+        }
+    }
+
+    if (isFirstMove) { 
+        if (!indices.includes(112)) return { valid: false, msg: "Der erste Zug muss über den Stern (Mitte) gehen." }; 
+    } else {
         let isConnected = false; const directions = [-1, 1, -15, 15];
-        indices.forEach(idx => { directions.forEach(dir => { const n = idx + dir; if (n >= 0 && n < 225 && board[n] !== null) isConnected = true; }); });
-        if (!isConnected) return { valid: false, msg: "Muss andocken." };
+        indices.forEach(idx => { 
+            directions.forEach(dir => { 
+                const n = idx + dir; 
+                // Prüfen ob Nachbar ein existierender Stein ist (nicht einer der neuen)
+                if (n >= 0 && n < 225 && board[n] !== null && !indices.includes(n)) isConnected = true; 
+            }); 
+        });
+        if (!isConnected) return { valid: false, msg: "Das Wort muss an bestehende Steine andocken." };
     }
     return { valid: true };
 }
@@ -101,6 +157,7 @@ function validateGeometry(moves, board, isFirstMove) {
 function validateDictionary(moves, board) {
     let tempBoard = [...board]; moves.forEach(m => tempBoard[m.index] = m.letter);
     const newIndices = moves.map(m => m.index); let wordsFound = new Set();
+    
     function getWordAt(index, isHorizontal) {
         let start = index; const step = isHorizontal ? 1 : 15;
         while(true) {
@@ -118,19 +175,40 @@ function validateDictionary(moves, board) {
         }
         return word.length > 1 ? word : null;
     }
-    for (let idx of newIndices) { const wH = getWordAt(idx, true); if (wH) wordsFound.add(wH); const wV = getWordAt(idx, false); if (wV) wordsFound.add(wV); }
-    for (let word of wordsFound) { if (!dictionary.has(word)) return { valid: false, msg: `Wort ungültig: ${word}` }; }
+    
+    for (let idx of newIndices) { 
+        const wH = getWordAt(idx, true); if (wH) wordsFound.add(wH); 
+        const wV = getWordAt(idx, false); if (wV) wordsFound.add(wV); 
+    }
+    
+    for (let word of wordsFound) { 
+        if (!dictionary.has(word)) return { valid: false, msg: `Unbekanntes Wort: ${word}` }; 
+    }
     return { valid: true };
 }
 
 const games = {};
-function createGame(roomId) { return { id: roomId, board: Array(15 * 15).fill(null), tileBag: shuffle([...INITIAL_BAG_TEMPLATE]), isFirstMove: true, activePlayerIndex: 0, players: [], lastActivity: Date.now() }; }
+function createGame(roomId) { 
+    return { 
+        id: roomId, 
+        board: Array(15 * 15).fill(null), 
+        tileBag: shuffle([...INITIAL_BAG_TEMPLATE]), 
+        isFirstMove: true, 
+        activePlayerIndex: 0, 
+        players: [], 
+        lastActivity: Date.now() 
+    }; 
+}
 
 function triggerBotTurn(room) {
     if (!games[room]) return; const game = games[room]; const player = game.players[game.activePlayerIndex];
     if (!player || !player.isBot) return;
+    
     setTimeout(() => {
         if (!games[room]) return;
+        // Simpler Bot: Nur Platzhalter-Logik
+        // Bot passt oder tauscht, wenn er nicht legen kann (hier: immer)
+        // Ausnahme: Erster Zug Cheat (zum Testen der Mechanik)
         if (game.isFirstMove) {
             const cheatWord = ['C', 'H', 'E', 'F']; const cheatIndices = [112, 113, 114, 115];
             const moves = []; cheatWord.forEach((char, i) => moves.push({ index: cheatIndices[i], letter: char }));
@@ -151,29 +229,43 @@ function triggerBotTurn(room) {
 }
 
 function finalizeTurn(game, room, socket) {
-    // Wenn Spieler entfernt wurden, kann activeIndex out of bounds sein
     if (game.players.length === 0) return;
     
     game.activePlayerIndex = (game.activePlayerIndex + 1) % game.players.length;
     game.lastActivity = Date.now();
-    io.to(room).emit('update-game-state', { board: game.board, players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id, isBot: p.isBot })), activePlayerIndex: game.activePlayerIndex, bagCount: game.tileBag.length });
+    
+    io.to(room).emit('update-game-state', { 
+        board: game.board, 
+        players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id, isBot: p.isBot })), 
+        activePlayerIndex: game.activePlayerIndex, 
+        bagCount: game.tileBag.length 
+    });
+    
     triggerBotTurn(room);
+    
     const nextPlayer = game.players[game.activePlayerIndex];
     if (socket && nextPlayer && nextPlayer.id === socket.id && !nextPlayer.isBot) {
         socket.emit('update-hand', nextPlayer.hand);
-        socket.emit('game-msg', `Training: Jetzt für ${nextPlayer.name}`);
+        socket.emit('game-msg', `Du bist dran!`);
     }
 }
 
-setInterval(() => { const now = Date.now(); Object.keys(games).forEach(roomId => { if (now - games[roomId].lastActivity > MAX_IDLE_TIME) delete games[roomId]; }); }, CLEANUP_INTERVAL);
+setInterval(() => { 
+    const now = Date.now(); 
+    Object.keys(games).forEach(roomId => { 
+        if (now - games[roomId].lastActivity > MAX_IDLE_TIME) delete games[roomId]; 
+    }); 
+}, CLEANUP_INTERVAL);
 
 io.on('connection', (socket) => {
     socket.on('join-game', ({ name, roomId }) => {
         const room = roomId.trim().toUpperCase() || "LOBBY"; socket.join(room); 
         if (!games[room]) games[room] = createGame(room); const game = games[room]; game.lastActivity = Date.now();
         if (game.players.length >= 4) { socket.emit('error-msg', "Raum voll."); return; }
+        
         const newPlayer = { id: socket.id, name: name || `P${game.players.length + 1}`, hand: drawTiles(game.tileBag, 7), score: 0, isBot: false };
         game.players.push(newPlayer); socket.data.roomId = room;
+        
         io.to(room).emit('update-game-state', { board: game.board, players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id, isBot: p.isBot })), activePlayerIndex: game.activePlayerIndex, bagCount: game.tileBag.length });
         socket.emit('update-hand', newPlayer.hand); triggerBotTurn(room);
     });
@@ -195,37 +287,31 @@ io.on('connection', (socket) => {
         io.to(room).emit('game-msg', `${botName} ist beigetreten.`); triggerBotTurn(room);
     });
 
-    // NEU: LEAVE GAME
     socket.on('leave-game', () => {
         const room = socket.data.roomId;
         if (!room || !games[room]) return;
         const game = games[room];
         
-        // Finde Spieler
         const pIndex = game.players.findIndex(p => p.id === socket.id);
         if (pIndex === -1) return;
 
         const player = game.players[pIndex];
         
-        // Logik: Wenn der Spieler dran war, Zug weitergeben
-        if (pIndex === game.activePlayerIndex) {
-            game.activePlayerIndex = (game.activePlayerIndex + 1) % game.players.length; 
-        } else if (pIndex < game.activePlayerIndex) {
-            // Wenn jemand davor geht, rutscht der Index nach unten
+        // BUGFIX: Index sicher handhaben
+        if (pIndex < game.activePlayerIndex) {
             game.activePlayerIndex--;
         }
-
-        // Steine zurück in den Sack (optional, hier: sie sind weg)
+        
         game.players.splice(pIndex, 1);
         
-        // Modulo sicherheitshalber nochmal prüfen
         if (game.players.length > 0) {
+            // Modulo neu berechnen für verbleibende Spieler
             game.activePlayerIndex = game.activePlayerIndex % game.players.length;
+            
             io.to(room).emit('update-game-state', { board: game.board, players: game.players.map(p => ({ name: p.name, score: p.score, id: p.id, isBot: p.isBot })), activePlayerIndex: game.activePlayerIndex, bagCount: game.tileBag.length });
             io.to(room).emit('game-msg', `${player.name} hat verlassen.`);
             triggerBotTurn(room);
         } else {
-            // Raum leer -> löschen
             delete games[room];
         }
     });
@@ -234,14 +320,19 @@ io.on('connection', (socket) => {
         const room = socket.data.roomId; if (!room || !games[room]) return; const game = games[room];
         const pIndex = game.players.findIndex(p => p.id === socket.id && game.activePlayerIndex === game.players.indexOf(p));
         if (pIndex !== game.activePlayerIndex) return; const player = game.players[pIndex];
+        
         let tempHand = [...player.hand]; let hasTiles = true;
         for (let move of moves) { const idx = tempHand.indexOf(move.letter); if (idx === -1) hasTiles = false; else tempHand.splice(idx, 1); }
         if (!hasTiles) return;
+        
         const geoValid = validateGeometry(moves, game.board, game.isFirstMove); if (!geoValid.valid) { socket.emit('error-msg', geoValid.msg); return; }
         const dictValid = validateDictionary(moves, game.board); if (!dictValid.valid) { socket.emit('error-msg', dictValid.msg); return; }
+        
         const points = calculateMoveScore(moves, game.board); player.score += points;
         moves.forEach(move => { game.board[move.index] = move.letter; const handIndex = player.hand.indexOf(move.letter); if (handIndex !== -1) player.hand.splice(handIndex, 1); });
+        
         const newTiles = drawTiles(game.tileBag, moves.length); player.hand.push(...newTiles); game.isFirstMove = false;
+        
         io.to(room).emit('game-msg', `${player.name} legt (${points} Pkt).`); socket.emit('update-hand', player.hand);
         finalizeTurn(game, room, socket);
     });
@@ -251,12 +342,15 @@ io.on('connection', (socket) => {
         const pIndex = game.players.findIndex(p => p.id === socket.id && game.activePlayerIndex === game.players.indexOf(p));
         if (pIndex !== game.activePlayerIndex) return; const player = game.players[pIndex];
         if (game.tileBag.length < letters.length) { socket.emit('error-msg', "Beutel fast leer!"); return; }
+        
         let valid = true; let tempHand = [...player.hand];
         letters.forEach(l => { const idx = tempHand.indexOf(l); if (idx === -1) valid = false; else tempHand.splice(idx, 1); });
         if(!valid) return;
+        
         letters.forEach(l => game.tileBag.push(l)); shuffle(game.tileBag);
         letters.forEach(l => { const realIdx = player.hand.indexOf(l); player.hand.splice(realIdx, 1); });
         const newTiles = drawTiles(game.tileBag, letters.length); player.hand.push(...newTiles);
+        
         io.to(room).emit('game-msg', `${player.name} tauscht.`); socket.emit('update-hand', player.hand);
         finalizeTurn(game, room, socket);
     });
@@ -269,7 +363,7 @@ io.on('connection', (socket) => {
         finalizeTurn(game, room, socket);
     });
 
-    socket.on('disconnect', () => { /* Optional: Auto-Leave bei Disconnect? */ });
+    socket.on('disconnect', () => { /* Logik ist bereits in leave-game oder Timeouts */ });
 });
 
 const PORT = process.env.PORT || 3000;
