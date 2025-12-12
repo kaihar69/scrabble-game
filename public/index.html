@@ -7,7 +7,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Roboto:wght@500;900&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #eaddcf; --bg-pattern: #dcca ba;
+            --bg-color: #eaddcf; 
+            --bg-pattern: #dccaba; /* KORRIGIERT */
             --board-border: #4e342e; --grid-gap: #111; --field-green: #2e7d32; 
             --tile-color: #f3e5ab; --tile-text: #2c3e50;
             --ui-dark: #2c3e50; --ui-gold: #d4af37; 
@@ -25,6 +26,8 @@
             color: var(--ui-dark); margin: 0; padding: 0;
             height: 100dvh; width: 100vw; overflow: hidden;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
+            /* Safe area für iOS */
+            padding-bottom: env(safe-area-inset-bottom);
         }
 
         /* --- LOGIN --- */
@@ -80,7 +83,6 @@
         }
         #btn-add-bot:hover { color: white; border-color: white; }
 
-        /* NEU: Der Regeln-Button */
         #btn-rules {
             position: absolute; left: 10px; top: 10px;
             width: 24px; height: 24px; 
@@ -163,7 +165,7 @@
             border-radius: 20px; font-weight: bold; pointer-events: none; opacity: 0; transition: opacity 0.5s; z-index: 99;
         }
 
-        /* --- NEU: RULES OVERLAY --- */
+        /* --- RULES OVERLAY --- */
         #rules-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.85); backdrop-filter: blur(3px);
@@ -198,7 +200,8 @@
             <ul>
                 <li><strong>Erster Zug:</strong> Muss über den Stern (Mitte) gehen.</li>
                 <li><strong>Weitere Züge:</strong> Müssen an bestehende Wörter andocken.</li>
-                <li>Alle Steine müssen in <strong>einer Linie</strong> liegen (waagerecht oder senkrecht).</li>
+                <li>Alle Steine müssen in <strong>einer Linie</strong> liegen.</li>
+                <li><strong>Umlaute:</strong> Ä, Ö, Ü sind erlaubt. ß bitte als SS legen.</li>
             </ul>
 
             <h3>Spezialfelder</h3>
@@ -208,15 +211,6 @@
                 <li><strong style="color:#0d47a1">3B</strong>: Dreifacher Buchstabenwert</li>
                 <li><strong style="color:#0288d1">2B</strong>: Doppelter Buchstabenwert</li>
             </ul>
-
-            <h3>Aktionen</h3>
-            <ul>
-                <li><strong>LEGEN:</strong> Platziere dein Wort und bestätige.</li>
-                <li><strong>TAUSCH:</strong> Wähle Buchstaben ab, die du nicht willst. Dies kostet dich deinen Zug!</li>
-                <li><strong>PASS:</strong> Gib den Zug an den nächsten Spieler weiter.</li>
-                <li><strong>RESET:</strong> Holt alle noch nicht bestätigten Steine zurück auf die Bank.</li>
-            </ul>
-            <p style="font-size:0.8rem; margin-top:15px; color:#555;">Tipp: Klicke im Bänkchen auf zwei Buchstaben, um sie zu tauschen (Sortieren).</p>
         </div>
     </div>
 
@@ -277,7 +271,8 @@
         let isSwapMode = false;
         let isMyTurn = false;
 
-        const LETTER_SCORES = { "A":1,"B":3,"C":4,"D":1,"E":1,"F":4,"G":2,"H":2,"I":1,"J":6,"K":4,"L":2,"M":3,"N":1,"O":2,"P":4,"Q":10,"R":1,"S":1,"T":1,"U":1,"V":6,"W":3,"X":8,"Y":10,"Z":3 };
+        // Umlaute hinzugefügt für Anzeige-Zwecke
+        const LETTER_SCORES = { "A":1,"B":3,"C":4,"D":1,"E":1,"F":4,"G":2,"H":2,"I":1,"J":6,"K":4,"L":2,"M":3,"N":1,"O":2,"P":4,"Q":10,"R":1,"S":1,"T":1,"U":1,"V":6,"W":3,"X":8,"Y":10,"Z":3,"Ä":6,"Ö":8,"Ü":6 };
 
         document.getElementById('btn-start').addEventListener('click', () => {
             const name = document.getElementById('inp-name').value.trim();
@@ -330,14 +325,13 @@
                 badges.push(badge);
             });
             
-            // Scoreboard leeren, aber Buttons erhalten
-            const btnRules = document.getElementById('btn-rules'); // Merken
-            const btnBot = document.getElementById('btn-add-bot'); // Merken
+            const btnRules = document.getElementById('btn-rules'); 
+            const btnBot = document.getElementById('btn-add-bot'); 
             
             scoreboard.innerHTML = '';
-            scoreboard.appendChild(btnRules); // Zuerst ? Button
-            badges.forEach(b => scoreboard.appendChild(b)); // Dann Spieler
-            scoreboard.appendChild(btnBot); // Dann Bot Button
+            scoreboard.appendChild(btnRules); 
+            badges.forEach(b => scoreboard.appendChild(b)); 
+            scoreboard.appendChild(btnBot); 
 
             isMyTurn = (players[activePlayerIndex]?.id === myId);
             
@@ -439,7 +433,10 @@
             currentTurnMoves = []; isSwapMode = false; document.body.classList.remove('swapping'); updateUI();
         });
         socket.on('update-hand', (hand) => { myHand = hand; renderHand(); });
-        socket.on('error-msg', (msg) => { showMsg("⚠️ " + msg); if(!isSwapMode) resetTurn(); });
+        
+        // BUGFIX: Kein harter Reset mehr bei Fehler!
+        socket.on('error-msg', (msg) => { showMsg("⚠️ " + msg); });
+        
         socket.on('game-msg', (text) => showMsg(text));
     </script>
 </body>
